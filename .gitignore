@@ -1,0 +1,14 @@
+# NetClaw
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.har
+*.pcap
+*.cer
+*.pem
+*.key
+.DS_Store
+build/
+dist/
+DerivedData/
