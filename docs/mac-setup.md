@@ -28,4 +28,4 @@ In System Settings -> Network -> active network -> Details -> Proxies:
 - Secure Web Proxy (HTTPS): `127.0.0.1`, port `9090`
 
 ## Current limitation
-A first-pass HTTPS MITM scaffold now exists in source, but it has not been compiled or runtime-validated in this environment. Expect follow-up fixes for response framing, fallback behavior, and TLS edge cases before calling it usable.
+A first-pass HTTPS MITM scaffold now exists in source, and it now includes buffered response serialization plus static MITM bypass rules. It still has not been compiled or runtime-validated in this environment, so expect follow-up fixes for TLS edge cases and smarter fallback behavior before calling it usable.

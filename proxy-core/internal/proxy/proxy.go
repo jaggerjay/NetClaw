@@ -121,7 +121,7 @@ func (s *Server) forwardCapturedHTTP(w http.ResponseWriter, r *http.Request, sch
 		item.Error = fmt.Sprintf("response body read error: %v", bodyErr)
 	}
 
-	for key, values := range resp.Header {
+	for key, values := range sanitizeResponseHeaders(resp.Header, int64(len(respBody))) {
 		for _, value := range values {
 			w.Header().Add(key, value)
 		}
@@ -173,18 +173,10 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 	}
 	defer clientConn.Close()
 
-	_, err = clientConn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
-	if err != nil {
-		item.Error = fmt.Sprintf("connect acknowledgement failed: %v", err)
-		item.EndTime = time.Now()
-		item.DurationMS = item.EndTime.Sub(start).Milliseconds()
-		_ = s.store.Save(item)
-		return
-	}
-
-	item.StatusCode = http.StatusOK
-
-	if s.authority == nil {
+	if shouldBypassMITM(host, s.config.MITMBypassHosts) || s.authority == nil {
+		if err := s.respondConnectEstablished(clientConn, &item, start); err != nil {
+			return
+		}
 		s.runConnectPassthrough(clientConn, r, &item, start)
 		return
 	}
@@ -192,15 +184,19 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 	if err := s.runConnectMITM(clientConn, r, &item, start); err != nil {
 		item.Error = err.Error()
 		item.TLSIntercepted = false
+		item.EndTime = time.Now()
+		item.DurationMS = item.EndTime.Sub(start).Milliseconds()
 		_ = s.store.Save(item)
 	}
 }
 
 func (s *Server) runConnectMITM(clientConn net.Conn, connectReq *http.Request, tunnelItem *session.Session, start time.Time) error {
+	if err := s.respondConnectEstablished(clientConn, tunnelItem, start); err != nil {
+		return err
+	}
+
 	tlsCert, err := s.authority.TLSCertificateForHost(connectReq.Host)
 	if err != nil {
-		tunnelItem.EndTime = time.Now()
-		tunnelItem.DurationMS = tunnelItem.EndTime.Sub(start).Milliseconds()
 		return fmt.Errorf("leaf certificate generation failed: %w", err)
 	}
 
@@ -211,8 +207,6 @@ func (s *Server) runConnectMITM(clientConn net.Conn, connectReq *http.Request, t
 	defer serverTLSConn.Close()
 
 	if err := serverTLSConn.Handshake(); err != nil {
-		tunnelItem.EndTime = time.Now()
-		tunnelItem.DurationMS = tunnelItem.EndTime.Sub(start).Milliseconds()
 		return fmt.Errorf("client TLS handshake failed: %w", err)
 	}
 
@@ -222,7 +216,6 @@ func (s *Server) runConnectMITM(clientConn net.Conn, connectReq *http.Request, t
 	_ = s.store.Save(*tunnelItem)
 
 	reader := bufio.NewReader(serverTLSConn)
-	writer := &mitmResponseWriter{conn: serverTLSConn, header: make(http.Header)}
 
 	for {
 		req, err := http.ReadRequest(reader)
@@ -242,10 +235,14 @@ func (s *Server) runConnectMITM(clientConn net.Conn, connectReq *http.Request, t
 			req.Host = connectReq.Host
 		}
 
-		writer.reset()
+		writer := newBufferedMITMResponseWriter(serverTLSConn)
 		s.forwardCapturedHTTP(writer, req.WithContext(context.Background()), "https", true)
-		if err := writer.flush(); err != nil {
+		if err := writer.Flush(); err != nil {
 			return fmt.Errorf("write intercepted response failed: %w", err)
+		}
+
+		if shouldCloseConnection(req.Header, writer.Header()) {
+			return nil
 		}
 	}
 }
@@ -288,6 +285,19 @@ func (s *Server) runConnectPassthrough(clientConn net.Conn, connectReq *http.Req
 	_ = s.store.Save(*item)
 }
 
+func (s *Server) respondConnectEstablished(clientConn net.Conn, item *session.Session, start time.Time) error {
+	_, err := clientConn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
+	if err != nil {
+		item.Error = fmt.Sprintf("connect acknowledgement failed: %v", err)
+		item.EndTime = time.Now()
+		item.DurationMS = item.EndTime.Sub(start).Milliseconds()
+		_ = s.store.Save(*item)
+		return err
+	}
+	item.StatusCode = http.StatusOK
+	return nil
+}
+
 func cloneBody(rc io.ReadCloser, limit int64) ([]byte, io.ReadCloser, int64, error) {
 	if rc == nil {
 		return nil, io.NopCloser(bytes.NewReader(nil)), 0, nil
@@ -311,6 +321,21 @@ func flattenHeaders(h http.Header) map[string]string {
 		result[k] = strings.Join(v, ", ")
 	}
 	return result
+}
+
+func sanitizeResponseHeaders(h http.Header, bodyLength int64) http.Header {
+	cleaned := make(http.Header, len(h)+1)
+	for key, values := range h {
+		canonical := http.CanonicalHeaderKey(key)
+		if canonical == "Transfer-Encoding" {
+			continue
+		}
+		for _, value := range values {
+			cleaned.Add(canonical, value)
+		}
+	}
+	cleaned.Set("Content-Length", strconv.FormatInt(bodyLength, 10))
+	return cleaned
 }
 
 func requestScheme(r *http.Request) string {
@@ -389,18 +414,26 @@ func splitHostPort(value string) (string, int) {
 	return value, 443
 }
 
-type mitmResponseWriter struct {
+type bufferedMITMResponseWriter struct {
 	conn        net.Conn
 	header      http.Header
 	statusCode  int
 	wroteHeader bool
+	body        bytes.Buffer
 }
 
-func (w *mitmResponseWriter) Header() http.Header {
+func newBufferedMITMResponseWriter(conn net.Conn) *bufferedMITMResponseWriter {
+	return &bufferedMITMResponseWriter{
+		conn:   conn,
+		header: make(http.Header),
+	}
+}
+
+func (w *bufferedMITMResponseWriter) Header() http.Header {
 	return w.header
 }
 
-func (w *mitmResponseWriter) WriteHeader(statusCode int) {
+func (w *bufferedMITMResponseWriter) WriteHeader(statusCode int) {
 	if w.wroteHeader {
 		return
 	}
@@ -408,24 +441,19 @@ func (w *mitmResponseWriter) WriteHeader(statusCode int) {
 	w.statusCode = statusCode
 }
 
-func (w *mitmResponseWriter) Write(data []byte) (int, error) {
+func (w *bufferedMITMResponseWriter) Write(data []byte) (int, error) {
 	if !w.wroteHeader {
 		w.WriteHeader(http.StatusOK)
 	}
-	return w.conn.Write(data)
+	return w.body.Write(data)
 }
 
-func (w *mitmResponseWriter) reset() {
-	w.header = make(http.Header)
-	w.statusCode = 0
-	w.wroteHeader = false
-}
-
-func (w *mitmResponseWriter) flush() error {
+func (w *bufferedMITMResponseWriter) Flush() error {
 	if !w.wroteHeader {
 		w.WriteHeader(http.StatusOK)
 	}
 
+	headers := sanitizeResponseHeaders(w.header, int64(w.body.Len()))
 	statusText := http.StatusText(w.statusCode)
 	if statusText == "" {
 		statusText = "Status"
@@ -433,18 +461,51 @@ func (w *mitmResponseWriter) flush() error {
 	if _, err := fmt.Fprintf(w.conn, "HTTP/1.1 %d %s\r\n", w.statusCode, statusText); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(w.conn, "Connection: keep-alive\r\n"); err != nil {
-		return err
-	}
-	for key, values := range w.header {
+	for key, values := range headers {
 		for _, value := range values {
 			if _, err := fmt.Fprintf(w.conn, "%s: %s\r\n", key, value); err != nil {
 				return err
 			}
 		}
 	}
-	_, err := fmt.Fprintf(w.conn, "\r\n")
+	if _, err := fmt.Fprintf(w.conn, "\r\n"); err != nil {
+		return err
+	}
+	_, err := io.Copy(w.conn, bytes.NewReader(w.body.Bytes()))
 	return err
+}
+
+func shouldBypassMITM(host string, bypassHosts []string) bool {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if host == "" {
+		return false
+	}
+	for _, pattern := range bypassHosts {
+		pattern = strings.ToLower(strings.TrimSpace(pattern))
+		if pattern == "" {
+			continue
+		}
+		if host == pattern || strings.HasSuffix(host, "."+pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldCloseConnection(requestHeaders, responseHeaders http.Header) bool {
+	return headerHasToken(requestHeaders, "Connection", "close") || headerHasToken(responseHeaders, "Connection", "close")
+}
+
+func headerHasToken(h http.Header, key, token string) bool {
+	for _, value := range h.Values(key) {
+		parts := strings.Split(value, ",")
+		for _, part := range parts {
+			if strings.EqualFold(strings.TrimSpace(part), token) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func isExpectedDisconnect(err error) bool {

@@ -5,7 +5,7 @@ NetClaw is a V1 macOS proxy capture tool inspired by Fiddler/Charles/Proxyman.
 ## V1 scope
 
 - Local HTTP/HTTPS proxy
-- HTTPS MITM via locally generated CA (scaffold in progress)
+- HTTPS MITM via locally generated CA (scaffold in progress, with static bypass rules)
 - Session capture and storage
 - Basic desktop viewer for captured sessions
 - Export to HAR / curl (scaffolded)

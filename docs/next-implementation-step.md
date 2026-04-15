@@ -12,7 +12,7 @@ NetClaw now has a first-pass MITM CONNECT scaffold. The next coding milestone sh
 - explicitly configure upstream `tls.Config`
 - support SNI correctly
 - handle certificate validation and error reporting
-- add fallback from MITM to passthrough when needed
+- improve fallback from MITM to passthrough when needed (beyond static bypass rules)
 
 ## Step 3: improve captured session fidelity
 - record byte counts for CONNECT tunnels
