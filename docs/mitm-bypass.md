@@ -18,8 +18,16 @@ If the CONNECT host matches `MITMBypassHosts`, NetClaw will:
 - `localhost`
 - `127.0.0.1`
 
+## Dynamic fallback behavior
+NetClaw now also has a temporary in-memory fallback path for MITM failures.
+If a host fails during MITM handling, it can be marked as temporarily bypassed for a backoff window so later connections go straight to passthrough.
+
+## Current backoff window
+- default: 10 minutes
+- scope: in-memory only (cleared on process restart)
+
 ## Future improvements
 - UI-managed bypass list
-- auto-bypass after repeated TLS handshake failures
+- persist temporary bypass state across restarts
 - session labeling for bypass reason
 - wildcard and regex policies

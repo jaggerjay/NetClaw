@@ -8,6 +8,7 @@
 - first-pass HTTPS MITM request path scaffold
 - buffered MITM response serialization scaffold
 - static MITM bypass rules
+- temporary MITM failure backoff cache
 - in-memory session store
 - local JSON API skeleton
 - SwiftUI app source skeleton

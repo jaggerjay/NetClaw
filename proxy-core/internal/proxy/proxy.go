@@ -23,11 +23,12 @@ import (
 )
 
 type Server struct {
-	config    Config
-	store     store.SessionStore
-	httpSrv   *http.Server
-	transport *http.Transport
-	authority *cert.Authority
+	config        Config
+	store         store.SessionStore
+	httpSrv       *http.Server
+	transport     *http.Transport
+	authority     *cert.Authority
+	fallbackCache *fallbackCache
 }
 
 func NewServer(cfg Config, st store.SessionStore, authority *cert.Authority) *Server {
@@ -36,10 +37,11 @@ func NewServer(cfg Config, st store.SessionStore, authority *cert.Authority) *Se
 	}
 
 	s := &Server{
-		config:    cfg,
-		store:     st,
-		transport: transport,
-		authority: authority,
+		config:        cfg,
+		store:         st,
+		transport:     transport,
+		authority:     authority,
+		fallbackCache: newFallbackCache(),
 	}
 
 	mux := http.NewServeMux()
@@ -173,7 +175,7 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 	}
 	defer clientConn.Close()
 
-	if shouldBypassMITM(host, s.config.MITMBypassHosts) || s.authority == nil {
+	if shouldBypassMITM(host, s.config.MITMBypassHosts) || s.shouldTemporarilyBypassMITM(host) || s.authority == nil {
 		if err := s.respondConnectEstablished(clientConn, &item, start); err != nil {
 			return
 		}
@@ -182,6 +184,7 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.runConnectMITM(clientConn, r, &item, start); err != nil {
+		s.markMITMFailure(host)
 		item.Error = err.Error()
 		item.TLSIntercepted = false
 		item.EndTime = time.Now()
