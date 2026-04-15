@@ -11,7 +11,7 @@
 ## Remaining for usable V1
 
 ### Proxy core
-1. Implement HTTPS CONNECT tunnel
+1. Improve HTTPS CONNECT tunnel session metadata
 2. Add root CA generation and persistence
 3. Add dynamic leaf certificate minting
 4. MITM intercepted HTTPS requests through the same capture pipeline

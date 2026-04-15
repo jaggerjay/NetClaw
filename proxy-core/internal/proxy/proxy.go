@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -54,7 +56,7 @@ func (s *Server) Close() error {
 
 func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	if strings.ToUpper(r.Method) == http.MethodConnect {
-		http.Error(w, "CONNECT MITM not implemented yet in scaffold", http.StatusNotImplemented)
+		s.handleConnect(w, r)
 		return
 	}
 
@@ -64,10 +66,10 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		StartTime:      start,
 		Scheme:         requestScheme(r),
 		Method:         r.Method,
-		Host:           r.URL.Hostname(),
+		Host:           requestHost(r),
 		Port:           requestPort(r),
-		Path:           r.URL.RequestURI(),
-		URL:            r.URL.String(),
+		Path:           requestPath(r),
+		URL:            requestURL(r),
 		ClientAddress:  r.RemoteAddr,
 		RequestHeaders: flattenHeaders(r.Header),
 	}
@@ -126,6 +128,88 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	_ = s.store.Save(item)
 }
 
+func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	host, port := splitHostPort(r.Host)
+	item := session.Session{
+		ID:            uuid.NewString(),
+		StartTime:     start,
+		EndTime:       start,
+		Scheme:        "https",
+		Method:        http.MethodConnect,
+		Host:          host,
+		Port:          port,
+		Path:          "",
+		URL:           "https://" + r.Host,
+		ClientAddress: r.RemoteAddr,
+	}
+
+	hijacker, ok := w.(http.Hijacker)
+	if !ok {
+		item.Error = "response writer does not support hijacking"
+		_ = s.store.Save(item)
+		http.Error(w, item.Error, http.StatusInternalServerError)
+		return
+	}
+
+	clientConn, _, err := hijacker.Hijack()
+	if err != nil {
+		item.Error = fmt.Sprintf("client hijack failed: %v", err)
+		item.EndTime = time.Now()
+		item.DurationMS = item.EndTime.Sub(start).Milliseconds()
+		_ = s.store.Save(item)
+		return
+	}
+	defer clientConn.Close()
+
+	upstreamConn, err := net.DialTimeout("tcp", r.Host, 10*time.Second)
+	if err != nil {
+		item.Error = fmt.Sprintf("upstream dial failed: %v", err)
+		item.EndTime = time.Now()
+		item.DurationMS = item.EndTime.Sub(start).Milliseconds()
+		_, _ = clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
+		_ = s.store.Save(item)
+		return
+	}
+	defer upstreamConn.Close()
+
+	_, err = clientConn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
+	if err != nil {
+		item.Error = fmt.Sprintf("connect acknowledgement failed: %v", err)
+		item.EndTime = time.Now()
+		item.DurationMS = item.EndTime.Sub(start).Milliseconds()
+		_ = s.store.Save(item)
+		return
+	}
+
+	item.StatusCode = http.StatusOK
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		_, _ = io.Copy(upstreamConn, clientConn)
+		if tcpConn, ok := upstreamConn.(*net.TCPConn); ok {
+			_ = tcpConn.CloseWrite()
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		_, _ = io.Copy(clientConn, upstreamConn)
+		if tcpConn, ok := clientConn.(*net.TCPConn); ok {
+			_ = tcpConn.CloseWrite()
+		}
+	}()
+
+	wg.Wait()
+	item.EndTime = time.Now()
+	item.DurationMS = item.EndTime.Sub(start).Milliseconds()
+	item.TLSIntercepted = false
+	_ = s.store.Save(item)
+}
+
 func cloneBody(rc io.ReadCloser, limit int64) ([]byte, io.ReadCloser, int64, error) {
 	if rc == nil {
 		return nil, io.NopCloser(bytes.NewReader(nil)), 0, nil
@@ -167,8 +251,50 @@ func requestPort(r *http.Request) int {
 			return p
 		}
 	}
+	_, port := splitHostPort(r.Host)
+	if port != 0 {
+		return port
+	}
 	if requestScheme(r) == "https" {
 		return 443
 	}
 	return 80
+}
+
+func requestHost(r *http.Request) string {
+	if r.URL.Hostname() != "" {
+		return r.URL.Hostname()
+	}
+	host, _ := splitHostPort(r.Host)
+	return host
+}
+
+func requestPath(r *http.Request) string {
+	if r.URL == nil {
+		return ""
+	}
+	if r.URL.RequestURI() != "" {
+		return r.URL.RequestURI()
+	}
+	return r.URL.Path
+}
+
+func requestURL(r *http.Request) string {
+	if r.URL != nil && r.URL.String() != "" {
+		return r.URL.String()
+	}
+	return requestScheme(r) + "://" + r.Host + requestPath(r)
+}
+
+func splitHostPort(value string) (string, int) {
+	if value == "" {
+		return "", 0
+	}
+	if host, portStr, err := net.SplitHostPort(value); err == nil {
+		if port, convErr := strconv.Atoi(portStr); convErr == nil {
+			return host, port
+		}
+		return host, 0
+	}
+	return value, 443
 }
