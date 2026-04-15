@@ -16,7 +16,7 @@ Build a macOS proxy capture tool similar to a lightweight Fiddler:
 Responsibilities:
 - listen on local proxy port
 - handle HTTP forwarding
-- handle HTTPS CONNECT tunneling with MITM
+- handle HTTPS CONNECT tunneling with passthrough first, then MITM
 - generate/install-ready CA materials
 - dynamically mint leaf certificates per host
 - capture request/response metadata and bodies

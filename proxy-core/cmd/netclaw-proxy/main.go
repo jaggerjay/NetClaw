@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"netclaw/proxy-core/internal/api"
+	"netclaw/proxy-core/internal/cert"
 	"netclaw/proxy-core/internal/proxy"
 	"netclaw/proxy-core/internal/store"
 )
@@ -18,11 +20,18 @@ func main() {
 	cfg := proxy.DefaultConfig()
 	st := store.NewMemoryStore()
 
+	authority, err := cert.NewAuthority(filepath.Join(cfg.DataDir, "certs"))
+	if err != nil {
+		log.Fatalf("certificate authority setup failed: %v", err)
+	}
+
 	proxyServer := proxy.NewServer(cfg, st)
 	apiServer := &http.Server{
 		Addr:    "127.0.0.1:9091",
-		Handler: api.NewServer(st).Handler(),
+		Handler: api.NewServer(st, authority).Handler(),
 	}
+
+	log.Printf("root CA certificate: %s", authority.Info().CertificatePath)
 
 	go func() {
 		log.Printf("proxy listening on %s", cfg.ListenAddress)

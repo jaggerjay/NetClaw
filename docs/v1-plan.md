@@ -3,6 +3,8 @@
 ## Done in this scaffold
 - repository structure
 - Go proxy core skeleton
+- HTTPS CONNECT passthrough scaffold
+- local CA / certificate management scaffold
 - in-memory session store
 - local JSON API skeleton
 - SwiftUI app source skeleton

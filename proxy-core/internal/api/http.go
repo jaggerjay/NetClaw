@@ -5,15 +5,17 @@ import (
 	"net/http"
 	"strings"
 
+	"netclaw/proxy-core/internal/cert"
 	"netclaw/proxy-core/internal/store"
 )
 
 type Server struct {
-	store store.SessionStore
+	store     store.SessionStore
+	authority *cert.Authority
 }
 
-func NewServer(st store.SessionStore) *Server {
-	return &Server{store: st}
+func NewServer(st store.SessionStore, authority *cert.Authority) *Server {
+	return &Server{store: st, authority: authority}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -21,6 +23,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/health", s.health)
 	mux.HandleFunc("/api/sessions", s.listSessions)
 	mux.HandleFunc("/api/sessions/", s.getSession)
+	mux.HandleFunc("/api/certificate-authority", s.certificateAuthorityInfo)
 	return mux
 }
 
@@ -49,6 +52,14 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, item)
+}
+
+func (s *Server) certificateAuthorityInfo(w http.ResponseWriter, _ *http.Request) {
+	if s.authority == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "certificate authority unavailable"})
+		return
+	}
+	writeJSON(w, http.StatusOK, s.authority.Info())
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {
