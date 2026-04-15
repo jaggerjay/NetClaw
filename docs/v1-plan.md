@@ -13,15 +13,14 @@
 ## Remaining for usable V1
 
 ### Proxy core
-1. Improve HTTPS CONNECT tunnel session metadata
-2. Add root CA generation and persistence
-3. Add dynamic leaf certificate minting
-4. MITM intercepted HTTPS requests through the same capture pipeline
-5. Add body truncation markers and binary handling
-6. Replace memory store with SQLite
-7. HAR export
-8. curl export
-9. filtering/search API
+1. Validate and harden MITM intercepted HTTPS flow
+2. Improve HTTPS CONNECT tunnel session metadata
+3. Add body truncation markers and binary handling
+4. Replace memory store with SQLite
+5. HAR export
+6. curl export
+7. filtering/search API
+8. add passthrough fallback policy for pinned / broken hosts
 
 ### macOS app
 1. Create Xcode project and wire these sources

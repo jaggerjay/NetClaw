@@ -1,18 +1,18 @@
 # Immediate Next Implementation Step
 
-NetClaw now has a scaffold for HTTPS CONNECT passthrough. The next coding milestone should be:
+NetClaw now has a first-pass MITM CONNECT scaffold. The next coding milestone should be:
 
-## Step 1: add local CA subsystem
-- generate root CA once
-- persist to disk
-- issue per-host leaf certificates
-- expose certificate path / trust guidance to the UI
+## Step 1: validate and harden the MITM request/response path
+- compile and fix any type/runtime issues
+- ensure intercepted responses are serialized correctly
+- verify keep-alive behavior and body framing
+- test with plain HTTP/1.1 sites through the HTTPS proxy path
 
-## Step 2: switch CONNECT from passthrough to MITM
-- terminate TLS from client
-- create upstream TLS to server
-- parse HTTP over both sides
-- route decrypted requests through the same capture pipeline
+## Step 2: establish real upstream TLS policy
+- explicitly configure upstream `tls.Config`
+- support SNI correctly
+- handle certificate validation and error reporting
+- add fallback from MITM to passthrough when needed
 
 ## Step 3: improve captured session fidelity
 - record byte counts for CONNECT tunnels

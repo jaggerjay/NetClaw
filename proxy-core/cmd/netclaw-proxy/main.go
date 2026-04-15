@@ -25,7 +25,7 @@ func main() {
 		log.Fatalf("certificate authority setup failed: %v", err)
 	}
 
-	proxyServer := proxy.NewServer(cfg, st)
+	proxyServer := proxy.NewServer(cfg, st, authority)
 	apiServer := &http.Server{
 		Addr:    "127.0.0.1:9091",
 		Handler: api.NewServer(st, authority).Handler(),

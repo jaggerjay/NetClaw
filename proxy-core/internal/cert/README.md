@@ -6,6 +6,7 @@ This package owns NetClaw's local certificate authority lifecycle.
 - root CA creation / persistence
 - root CA loading
 - per-host leaf certificate generation and caching
+- `tls.Certificate` generation for MITM handshakes
 - API-friendly metadata via `Authority.Info()`
 
 ## Future additions

@@ -11,15 +11,16 @@ NetClaw now includes a local certificate authority scaffold.
 - Exposes CA info over the local API:
   - `GET /api/certificate-authority`
 
-## Important
-At this stage, certificate generation is ready, but the proxy does **not yet** use these certificates to MITM HTTPS traffic. CONNECT still operates in passthrough mode.
-
-## Planned usage in the next step
+## Current stage
+The proxy now has a first-pass MITM handshake scaffold:
 1. On CONNECT for `example.com:443`
 2. Generate or fetch a leaf cert for `example.com`
 3. Perform TLS handshake with the client using that leaf cert
-4. Establish upstream TLS to the real server
-5. Parse decrypted HTTP messages and capture them
+4. Read decrypted HTTP requests from the client-side TLS stream
+5. Forward captured requests through the existing HTTP pipeline
+
+## Important limitation
+This is still a scaffold, not a production-ready MITM engine. It needs real build-and-runtime validation, upstream TLS hardening, header/body correctness checks, and fallback logic.
 
 ## macOS trust flow
 For real HTTPS interception, the root CA certificate must be imported into Keychain Access and marked as trusted.

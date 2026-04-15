@@ -28,4 +28,4 @@ In System Settings -> Network -> active network -> Details -> Proxies:
 - Secure Web Proxy (HTTPS): `127.0.0.1`, port `9090`
 
 ## Current limitation
-HTTPS CONNECT passthrough is scaffolded, but HTTPS MITM is not implemented yet, so HTTPS requests can traverse the proxy but will not yet be decrypted or shown as full request/response contents.
+A first-pass HTTPS MITM scaffold now exists in source, but it has not been compiled or runtime-validated in this environment. Expect follow-up fixes for response framing, fallback behavior, and TLS edge cases before calling it usable.

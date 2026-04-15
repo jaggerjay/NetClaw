@@ -38,9 +38,11 @@ Responsibilities:
 2. Proxy core creates/loads root CA
 3. User configures macOS proxy to 127.0.0.1:port and trusts CA
 4. Client traffic reaches proxy core
-5. Proxy core captures request/response and persists session
-6. App polls local API for list/details
-7. User inspects sessions in UI
+5. For HTTP, proxy forwards and captures normally
+6. For HTTPS CONNECT, proxy can attempt MITM handshake using a per-host leaf cert
+7. Decrypted HTTP requests are routed through the same capture pipeline
+8. App polls local API for list/details
+9. User inspects sessions in UI
 
 ## V1 Constraints
 
