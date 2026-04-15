@@ -9,9 +9,9 @@ NetClaw now has a first-pass MITM CONNECT scaffold. The next coding milestone sh
 - test with plain HTTP/1.1 sites through the HTTPS proxy path
 
 ## Step 2: establish real upstream TLS policy
-- explicitly configure upstream `tls.Config`
-- support SNI correctly
-- handle certificate validation and error reporting
+- validate current upstream TLS config and runtime behavior
+- verify SNI behavior against real targets
+- improve certificate validation UX and error surfacing
 - improve fallback from MITM to passthrough when needed (beyond current static rules + temporary failure cache)
 
 ## Step 3: improve captured session fidelity

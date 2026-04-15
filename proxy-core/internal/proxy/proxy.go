@@ -32,8 +32,19 @@ type Server struct {
 }
 
 func NewServer(cfg Config, st store.SessionStore, authority *cert.Authority) *Server {
+	dialer := &net.Dialer{
+		Timeout: cfg.ConnectDialTimeout,
+	}
+
 	transport := &http.Transport{
-		Proxy: nil,
+		Proxy:                 nil,
+		DialContext:           dialer.DialContext,
+		TLSHandshakeTimeout:   cfg.UpstreamTLSHandshakeDelay,
+		ResponseHeaderTimeout: cfg.ResponseHeaderTimeout,
+		TLSClientConfig: &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: cfg.UpstreamTLSSkipVerify,
+		},
 	}
 
 	s := &Server{
@@ -106,14 +117,20 @@ func (s *Server) forwardCapturedHTTP(w http.ResponseWriter, r *http.Request, sch
 	if outReq.URL.Host == "" {
 		outReq.URL.Host = r.Host
 	}
+	if outReq.Host == "" {
+		outReq.Host = outReq.URL.Host
+	}
+	if scheme == "https" {
+		setTLSServerName(outReq)
+	}
 
 	resp, err := s.transport.RoundTrip(outReq)
 	if err != nil {
 		item.EndTime = time.Now()
 		item.DurationMS = item.EndTime.Sub(start).Milliseconds()
-		item.Error = err.Error()
+		item.Error = describeUpstreamError(err)
 		_ = s.store.Save(item)
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		http.Error(w, item.Error, statusCodeForUpstreamError(err))
 		return
 	}
 	defer resp.Body.Close()
@@ -237,6 +254,7 @@ func (s *Server) runConnectMITM(clientConn net.Conn, connectReq *http.Request, t
 		if req.Host == "" {
 			req.Host = connectReq.Host
 		}
+		setTLSServerName(req)
 
 		writer := newBufferedMITMResponseWriter(serverTLSConn)
 		s.forwardCapturedHTTP(writer, req.WithContext(context.Background()), "https", true)
@@ -251,7 +269,7 @@ func (s *Server) runConnectMITM(clientConn net.Conn, connectReq *http.Request, t
 }
 
 func (s *Server) runConnectPassthrough(clientConn net.Conn, connectReq *http.Request, item *session.Session, start time.Time) {
-	upstreamConn, err := net.DialTimeout("tcp", connectReq.Host, 10*time.Second)
+	upstreamConn, err := net.DialTimeout("tcp", connectReq.Host, s.config.ConnectDialTimeout)
 	if err != nil {
 		item.Error = fmt.Sprintf("upstream dial failed: %v", err)
 		item.EndTime = time.Now()
@@ -339,6 +357,18 @@ func sanitizeResponseHeaders(h http.Header, bodyLength int64) http.Header {
 	}
 	cleaned.Set("Content-Length", strconv.FormatInt(bodyLength, 10))
 	return cleaned
+}
+
+func setTLSServerName(r *http.Request) {
+	if r == nil {
+		return
+	}
+	if r.Host == "" && r.URL != nil {
+		r.Host = r.URL.Host
+	}
+	if r.URL != nil && r.URL.Host == "" {
+		r.URL.Host = r.Host
+	}
 }
 
 func requestScheme(r *http.Request) string {

@@ -9,6 +9,8 @@
 - buffered MITM response serialization scaffold
 - static MITM bypass rules
 - temporary MITM failure backoff cache
+- upstream TLS transport configuration scaffold
+- upstream TLS / x509 error classification scaffold
 - in-memory session store
 - local JSON API skeleton
 - SwiftUI app source skeleton

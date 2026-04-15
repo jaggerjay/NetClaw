@@ -22,6 +22,8 @@ This workspace currently contains a first-pass project skeleton and design docs,
 - HTTP proxy capture scaffold
 - HTTPS CONNECT passthrough scaffold
 - local CA / leaf certificate generation scaffold
+- MITM request/response and fallback scaffolds
+- upstream TLS transport/error-handling scaffold
 - SwiftUI viewer shell
 
 The Go and Swift toolchains were not available in the current environment, so the code is provided as a scaffold and should be built on a macOS development machine with Go and Xcode installed.
