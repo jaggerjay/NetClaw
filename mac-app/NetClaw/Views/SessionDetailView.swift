@@ -6,44 +6,120 @@ struct SessionDetailView: View {
     var body: some View {
         Group {
             if let session {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(session.url)
-                        .font(.headline)
-                    HStack(spacing: 16) {
-                        Label(session.method, systemImage: "arrow.up.right")
-                        Label("\(session.statusCode)", systemImage: "arrow.down.right")
-                        Label("\(session.durationMs) ms", systemImage: "clock")
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        header(session)
+                        metadata(session)
+                        if let error = session.error, !error.isEmpty {
+                            errorBox(error)
+                        }
+                        headersSection(title: "Request Headers", headers: session.requestHeaders)
+                        bodySection(title: "Request Body", data: session.requestBody, emptyText: "No captured request body")
+                        headersSection(title: "Response Headers", headers: session.responseHeaders)
+                        bodySection(title: "Response Body", data: session.responseBody, emptyText: "No captured response body")
                     }
-                    .font(.subheadline)
-
-                    Divider()
-
-                    Text("Request Headers")
-                        .font(.headline)
-                    ScrollView {
-                        Text(prettyHeaders(session.requestHeaders))
-                            .font(.system(.body, design: .monospaced))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    Divider()
-
-                    Text("Response Headers")
-                        .font(.headline)
-                    ScrollView {
-                        Text(prettyHeaders(session.responseHeaders))
-                            .font(.system(.body, design: .monospaced))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+                    .padding()
                 }
-                .padding()
             } else {
-                ContentUnavailableView("No Session Selected", systemImage: "network", description: Text("Choose a captured request from the list."))
+                WelcomeDetailView()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func header(_ session: SessionDetail) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(session.url)
+                .font(.title3)
+                .textSelection(.enabled)
+            HStack(spacing: 12) {
+                pill(session.method, color: .blue)
+                pill(session.scheme.uppercased(), color: session.tlsIntercepted ? .green : .secondary)
+                if session.statusCode > 0 {
+                    pill("\(session.statusCode)", color: session.error == nil ? .secondary : .red)
+                }
+                Label("\(session.durationMs) ms", systemImage: "clock")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func metadata(_ session: SessionDetail) -> some View {
+        GroupBox("Session") {
+            VStack(alignment: .leading, spacing: 8) {
+                LabeledContent("Host", value: session.host)
+                LabeledContent("Port", value: String(session.port))
+                LabeledContent("Client", value: session.clientAddress)
+                LabeledContent("Started", value: session.startTime.formatted(date: .abbreviated, time: .standard))
+                LabeledContent("Ended", value: session.endTime.formatted(date: .omitted, time: .standard))
+                LabeledContent("Request Size", value: ByteCountFormatter.string(fromByteCount: session.requestSize, countStyle: .file))
+                LabeledContent("Response Size", value: ByteCountFormatter.string(fromByteCount: session.responseSize, countStyle: .file))
+                LabeledContent("Content Type", value: session.contentType.isEmpty ? "—" : session.contentType)
+                LabeledContent("TLS Intercepted", value: session.tlsIntercepted ? "Yes" : "No")
+            }
+            .font(.caption)
+            .textSelection(.enabled)
+        }
+    }
+
+    @ViewBuilder
+    private func errorBox(_ error: String) -> some View {
+        GroupBox {
+            Text(error)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(.red)
+                .textSelection(.enabled)
+        } label: {
+            Label("Error", systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.red)
+        }
+    }
+
+    @ViewBuilder
+    private func headersSection(title: String, headers: [String: String]) -> some View {
+        GroupBox(title) {
+            Text(prettyHeaders(headers).isEmpty ? "No headers" : prettyHeaders(headers))
+                .font(.system(.body, design: .monospaced))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
+        }
+    }
+
+    @ViewBuilder
+    private func bodySection(title: String, data: Data?, emptyText: String) -> some View {
+        GroupBox(title) {
+            if let data, !data.isEmpty {
+                Text(renderBody(data))
+                    .font(.system(.body, design: .monospaced))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+            } else {
+                Text(emptyText)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
 
     private func prettyHeaders(_ headers: [String: String]) -> String {
         headers.keys.sorted().map { "\($0): \(headers[$0] ?? "")" }.joined(separator: "\n")
+    }
+
+    private func renderBody(_ data: Data) -> String {
+        if let text = String(data: data, encoding: .utf8) {
+            return text
+        }
+        return data.base64EncodedString()
+    }
+
+    private func pill(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.caption.monospaced())
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.15))
+            .clipShape(Capsule())
+            .foregroundStyle(color)
     }
 }

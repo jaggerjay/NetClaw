@@ -6,6 +6,20 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             VStack(spacing: 0) {
+                ConnectionStatusView(
+                    apiBaseURLText: $viewModel.apiBaseURLText,
+                    statusText: viewModel.statusText,
+                    isConnected: viewModel.isConnected,
+                    isRefreshing: viewModel.isRefreshing,
+                    autoRefreshEnabled: viewModel.autoRefreshEnabled,
+                    authorityInfo: viewModel.authorityInfo,
+                    onRefresh: { Task { await viewModel.refresh() } },
+                    onApplyBaseURL: { Task { await viewModel.applyAPIBaseURL() } },
+                    onToggleAutoRefresh: { value in viewModel.setAutoRefreshEnabled(value) }
+                )
+
+                Divider()
+
                 VStack(spacing: 8) {
                     HStack {
                         TextField("Search host / URL / method", text: $viewModel.searchText)
@@ -35,7 +49,10 @@ struct ContentView: View {
                 }
                 .padding()
 
-                SessionListView(sessions: viewModel.sessions) { session in
+                SessionListView(
+                    sessions: viewModel.sessions,
+                    selectedSessionID: viewModel.selectedSessionID
+                ) { session in
                     Task { await viewModel.select(sessionID: session.id) }
                 }
             }
@@ -43,8 +60,10 @@ struct ContentView: View {
         } detail: {
             SessionDetailView(session: viewModel.selectedSession)
         }
+        .navigationSplitViewStyle(.balanced)
         .task {
-            await viewModel.refresh()
+            viewModel.start()
+            await viewModel.applyAPIBaseURL()
         }
         .onSubmit {
             Task { await viewModel.refresh() }
@@ -52,7 +71,7 @@ struct ContentView: View {
         .safeAreaInset(edge: .bottom) {
             HStack {
                 Circle()
-                    .fill(viewModel.statusText == "Connected" ? Color.green : Color.orange)
+                    .fill(viewModel.isConnected ? Color.green : Color.orange)
                     .frame(width: 8, height: 8)
                 Text(viewModel.statusText)
                     .font(.caption)

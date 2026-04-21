@@ -25,7 +25,27 @@ final class APIClient {
         return decoder
     }()
 
-    private let baseURL = URL(string: "http://127.0.0.1:9091")!
+    var baseURL: URL
+
+    init(baseURL: URL = URL(string: "http://127.0.0.1:9091")!) {
+        self.baseURL = baseURL
+    }
+
+    func updateBaseURL(_ url: URL) {
+        baseURL = url
+    }
+
+    func fetchHealth() async throws -> HealthStatus {
+        let (data, response) = try await URLSession.shared.data(from: baseURL.appendingPathComponent("/health"))
+        try validate(response: response)
+        return try decoder.decode(HealthStatus.self, from: data)
+    }
+
+    func fetchCertificateAuthorityInfo() async throws -> CertificateAuthorityInfo {
+        let (data, response) = try await URLSession.shared.data(from: baseURL.appendingPathComponent("/api/certificate-authority"))
+        try validate(response: response)
+        return try decoder.decode(CertificateAuthorityInfo.self, from: data)
+    }
 
     func fetchSessions(query: SessionQuery = SessionQuery()) async throws -> [SessionSummary] {
         var components = URLComponents(url: baseURL.appendingPathComponent("/api/sessions"), resolvingAgainstBaseURL: false)!
@@ -53,12 +73,21 @@ final class APIClient {
             components.queryItems = items
         }
 
-        let (data, _) = try await URLSession.shared.data(from: components.url!)
+        let (data, response) = try await URLSession.shared.data(from: components.url!)
+        try validate(response: response)
         return try decoder.decode([SessionSummary].self, from: data)
     }
 
     func fetchSession(id: String) async throws -> SessionDetail {
-        let (data, _) = try await URLSession.shared.data(from: baseURL.appendingPathComponent("/api/sessions/\(id)"))
+        let (data, response) = try await URLSession.shared.data(from: baseURL.appendingPathComponent("/api/sessions/\(id)"))
+        try validate(response: response)
         return try decoder.decode(SessionDetail.self, from: data)
+    }
+
+    private func validate(response: URLResponse) throws {
+        guard let httpResponse = response as? HTTPURLResponse else { return }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
     }
 }
