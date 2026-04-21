@@ -4,6 +4,7 @@ SwiftUI-based macOS test shell for the NetClaw proxy core.
 
 ## Current test-shell features
 
+- checked-in `NetClaw.xcodeproj`
 - configurable local API base URL
 - connection health indicator
 - auto-refreshing session list
@@ -22,10 +23,18 @@ You can change the API base URL inside the app to point at another local or remo
 
 ## To run on macOS
 
-1. Create an Xcode macOS app project named `NetClaw`
-2. Add the files from `mac-app/NetClaw/` to the target
+1. Open `mac-app/NetClaw.xcodeproj`
+2. Select the `NetClaw` scheme
 3. Start the proxy-core separately
-4. Launch the app and confirm the health indicator turns green
+4. Run the app from Xcode
+5. Confirm the health indicator turns green
+
+## Quick proxy-core command
+
+```bash
+cd proxy-core
+go run ./cmd/netclaw-proxy -proxy-listen 127.0.0.1:9090 -api-listen 127.0.0.1:9091 -data-dir .netclaw-data/dev
+```
 
 ## Next app steps
 

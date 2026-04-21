@@ -1,29 +1,15 @@
 # NetClaw macOS Test Shell - Xcode Setup
 
-## Create the project
+## Open the checked-in project
 
 1. Open Xcode
-2. Create a new project
-3. Choose **App** under macOS
-4. Product Name: `NetClaw`
-5. Interface: `SwiftUI`
-6. Language: `Swift`
-
-## Add the source files
-
-Add all files under:
-
-- `mac-app/NetClaw/Models/`
-- `mac-app/NetClaw/Services/`
-- `mac-app/NetClaw/ViewModels/`
-- `mac-app/NetClaw/Views/`
-- `mac-app/NetClaw/NetClawApp.swift`
-
-Make sure they are added to the main app target.
+2. Open `mac-app/NetClaw.xcodeproj`
+3. Select the `NetClaw` scheme
+4. Build and run
 
 ## Local permissions
 
-No special sandbox entitlements are required for the current test shell because it only talks to the local HTTP API.
+The current test shell has app sandbox disabled in project settings so it can talk to the local HTTP API without extra entitlement work during development.
 
 ## Start proxy-core first
 
@@ -53,3 +39,9 @@ curl --proxy http://127.0.0.1:9090 http://example.com
 ```
 
 The request should appear in the app automatically if auto-refresh is enabled.
+
+## Notes
+
+- App icons are placeholder entries right now
+- This is a development test shell, not a notarized distribution build
+- The next logical step is teaching the app to launch and stop `proxy-core` itself
