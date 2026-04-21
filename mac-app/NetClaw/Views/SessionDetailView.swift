@@ -4,6 +4,9 @@ import AppKit
 struct SessionDetailView: View {
     let session: SessionDetail?
 
+    @State private var expandedBodySections: Set<String> = []
+    private let previewCharacterLimit = 4000
+
     var body: some View {
         Group {
             if let session {
@@ -127,6 +130,11 @@ struct SessionDetailView: View {
         GroupBox(title) {
             if let data, !data.isEmpty {
                 let renderedBody = renderBody(data, contentType: contentType, encoding: encoding)
+                let sectionID = title.lowercased().replacingOccurrences(of: " ", with: "-")
+                let isExpanded = expandedBodySections.contains(sectionID)
+                let previewText = previewBodyText(renderedBody, expanded: isExpanded)
+                let canExpand = renderedBody.count > previewCharacterLimit
+
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
                         if !contentType.isEmpty {
@@ -137,6 +145,9 @@ struct SessionDetailView: View {
                         }
                         if truncated {
                             pill("TRUNCATED", color: .orange)
+                        }
+                        if canExpand {
+                            pill(isExpanded ? "FULL" : "PREVIEW", color: .secondary)
                         }
                         Spacer()
                         Button("Copy") {
@@ -152,10 +163,17 @@ struct SessionDetailView: View {
                             .frame(maxHeight: 260)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     } else {
-                        Text(renderedBody)
+                        Text(previewText)
                             .font(.system(.body, design: .monospaced))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .textSelection(.enabled)
+
+                        if canExpand {
+                            Button(isExpanded ? "Show Less" : "Show All") {
+                                toggleBodyExpansion(sectionID)
+                            }
+                            .buttonStyle(.borderless)
+                        }
                     }
                 }
             } else {
@@ -191,6 +209,22 @@ struct SessionDetailView: View {
                     copyToPasteboard(renderBody(responseBody, contentType: session.contentType, encoding: session.responseBodyEncoding))
                 }
             }
+        }
+    }
+
+    private func previewBodyText(_ value: String, expanded: Bool) -> String {
+        guard !expanded, value.count > previewCharacterLimit else {
+            return value
+        }
+        let end = value.index(value.startIndex, offsetBy: previewCharacterLimit)
+        return String(value[..<end]) + "\n\n… [preview truncated, click Show All to view full body]"
+    }
+
+    private func toggleBodyExpansion(_ sectionID: String) {
+        if expandedBodySections.contains(sectionID) {
+            expandedBodySections.remove(sectionID)
+        } else {
+            expandedBodySections.insert(sectionID)
         }
     }
 

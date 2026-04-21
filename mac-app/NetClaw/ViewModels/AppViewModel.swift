@@ -178,13 +178,13 @@ final class AppViewModel: ObservableObject {
     func useSuggestedProxyCommand() {
         let workingDir = proxyWorkingDirectoryText.trimmingCharacters(in: .whitespacesAndNewlines)
         let dataDir = workingDir.isEmpty ? ".netclaw-data/dev" : "\(workingDir)/.netclaw-data/dev"
-        proxyCommandText = "go run ./cmd/netclaw-proxy -proxy-listen 127.0.0.1:9090 -api-listen 127.0.0.1:9091 -data-dir \"\(dataDir)\""
+        proxyCommandText = "go run ./cmd/netclaw-proxy -proxy-listen 127.0.0.1:9090 -api-listen 127.0.0.1:9091 -data-dir \"\(dataDir)\" -max-body-bytes 0"
         defaults.set(proxyCommandText, forKey: Self.proxyCommandKey)
         validateProxyLaunchSettings()
     }
 
     func useDebugBuildCommand() {
-        proxyCommandText = "go build -o ./.netclaw-data/dev/netclaw-proxy ./cmd/netclaw-proxy && ./.netclaw-data/dev/netclaw-proxy -proxy-listen 127.0.0.1:9090 -api-listen 127.0.0.1:9091 -data-dir ./.netclaw-data/dev"
+        proxyCommandText = "go build -o ./.netclaw-data/dev/netclaw-proxy ./cmd/netclaw-proxy && ./.netclaw-data/dev/netclaw-proxy -proxy-listen 127.0.0.1:9090 -api-listen 127.0.0.1:9091 -data-dir ./.netclaw-data/dev -max-body-bytes 0"
         defaults.set(proxyCommandText, forKey: Self.proxyCommandKey)
         validateProxyLaunchSettings()
     }

@@ -30,7 +30,9 @@ This workspace currently contains a first-pass project skeleton and design docs,
 
 ## Body capture note
 
+- body capture now defaults to preserving the original request/response body data (`MaxBodyBytes = 0`)
 - `-max-body-bytes 0` means unlimited body capture
 - positive values cap stored request/response body bytes per item
+- the macOS app previews large bodies with a truncated view first, with an option to show the full content
 
 The Go and Swift toolchains were not available in the current environment, so the code is provided as a scaffold and should be built on a macOS development machine with Go and Xcode installed.
