@@ -6,13 +6,17 @@ final class AppViewModel: ObservableObject {
     @Published var sessions: [SessionSummary] = []
     @Published var selectedSession: SessionDetail?
     @Published var searchText: String = ""
+    @Published var methodFilter: String = ""
+    @Published var hostFilter: String = ""
+    @Published var hasErrorOnly: Bool = false
+    @Published var interceptedOnly: Bool = false
     @Published var statusText: String = "Proxy not connected"
 
     private let apiClient = APIClient()
 
     func refresh() async {
         do {
-            let items = try await apiClient.fetchSessions()
+            let items = try await apiClient.fetchSessions(query: currentQuery)
             sessions = items
             statusText = "Connected"
         } catch {
@@ -28,12 +32,22 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    var filteredSessions: [SessionSummary] {
-        guard !searchText.isEmpty else { return sessions }
-        return sessions.filter {
-            $0.url.localizedCaseInsensitiveContains(searchText) ||
-            $0.host.localizedCaseInsensitiveContains(searchText) ||
-            $0.method.localizedCaseInsensitiveContains(searchText)
-        }
+    func clearFilters() {
+        searchText = ""
+        methodFilter = ""
+        hostFilter = ""
+        hasErrorOnly = false
+        interceptedOnly = false
+    }
+
+    private var currentQuery: SessionQuery {
+        SessionQuery(
+            text: searchText,
+            method: methodFilter,
+            host: hostFilter,
+            hasError: hasErrorOnly ? true : nil,
+            tlsIntercepted: interceptedOnly ? true : nil,
+            limit: 500
+        )
     }
 }
