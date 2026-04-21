@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -18,6 +19,15 @@ import (
 
 func main() {
 	cfg := proxy.DefaultConfig()
+	apiListen := "127.0.0.1:9091"
+
+	flag.StringVar(&cfg.ListenAddress, "proxy-listen", cfg.ListenAddress, "proxy listen address")
+	flag.StringVar(&apiListen, "api-listen", apiListen, "API listen address")
+	flag.StringVar(&cfg.DataDir, "data-dir", cfg.DataDir, "data directory for certificates and session database")
+	flag.BoolVar(&cfg.CaptureBodies, "capture-bodies", cfg.CaptureBodies, "capture request/response bodies")
+	flag.Int64Var(&cfg.MaxBodyBytes, "max-body-bytes", cfg.MaxBodyBytes, "maximum captured bytes per request/response body")
+	flag.BoolVar(&cfg.UpstreamTLSSkipVerify, "upstream-tls-skip-verify", cfg.UpstreamTLSSkipVerify, "skip upstream TLS certificate verification")
+	flag.Parse()
 
 	st, err := store.NewSQLiteStore(filepath.Join(cfg.DataDir, "sessions.sqlite"))
 	if err != nil {
@@ -36,7 +46,7 @@ func main() {
 
 	proxyServer := proxy.NewServer(cfg, st, authority)
 	apiServer := &http.Server{
-		Addr:    "127.0.0.1:9091",
+		Addr:    apiListen,
 		Handler: api.NewServer(st, authority).Handler(),
 	}
 
