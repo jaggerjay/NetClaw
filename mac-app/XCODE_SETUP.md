@@ -11,7 +11,20 @@
 
 The current test shell has app sandbox disabled in project settings so it can talk to the local HTTP API without extra entitlement work during development.
 
-## Start proxy-core first
+## Start proxy-core
+
+You now have two options.
+
+### Option A: start it from inside the app
+
+When the app opens:
+
+1. Set **Working Directory** to your local `proxy-core` folder
+2. Click **Suggested** to fill a launch command
+3. Click **Start Proxy**
+4. Confirm proxy logs appear and the API status turns green
+
+### Option B: start it manually from Terminal
 
 From the repository root:
 

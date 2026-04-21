@@ -6,17 +6,34 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             VStack(spacing: 0) {
-                ConnectionStatusView(
-                    apiBaseURLText: $viewModel.apiBaseURLText,
-                    statusText: viewModel.statusText,
-                    isConnected: viewModel.isConnected,
-                    isRefreshing: viewModel.isRefreshing,
-                    autoRefreshEnabled: viewModel.autoRefreshEnabled,
-                    authorityInfo: viewModel.authorityInfo,
-                    onRefresh: { Task { await viewModel.refresh() } },
-                    onApplyBaseURL: { Task { await viewModel.applyAPIBaseURL() } },
-                    onToggleAutoRefresh: { value in viewModel.setAutoRefreshEnabled(value) }
-                )
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ProxyRuntimeView(
+                            workingDirectoryText: $viewModel.proxyWorkingDirectoryText,
+                            commandText: $viewModel.proxyCommandText,
+                            proxyStatusText: viewModel.proxyStatusText,
+                            isProxyRunning: viewModel.isProxyRunning,
+                            logText: viewModel.proxyLogText,
+                            onStart: { viewModel.startProxy() },
+                            onStop: { viewModel.stopProxy() },
+                            onClearLog: { viewModel.clearProxyLog() },
+                            onUseSuggestedCommand: { viewModel.useSuggestedProxyCommand() }
+                        )
+
+                        ConnectionStatusView(
+                            apiBaseURLText: $viewModel.apiBaseURLText,
+                            statusText: viewModel.statusText,
+                            isConnected: viewModel.isConnected,
+                            isRefreshing: viewModel.isRefreshing,
+                            autoRefreshEnabled: viewModel.autoRefreshEnabled,
+                            authorityInfo: viewModel.authorityInfo,
+                            onRefresh: { Task { await viewModel.refresh() } },
+                            onApplyBaseURL: { Task { await viewModel.applyAPIBaseURL() } },
+                            onToggleAutoRefresh: { value in viewModel.setAutoRefreshEnabled(value) }
+                        )
+                    }
+                    .padding()
+                }
 
                 Divider()
 
@@ -57,6 +74,7 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("NetClaw")
+            .frame(minWidth: 420)
         } detail: {
             SessionDetailView(session: viewModel.selectedSession)
         }
@@ -76,6 +94,11 @@ struct ContentView: View {
                 Text(viewModel.statusText)
                     .font(.caption)
                 Spacer()
+                if viewModel.isProxyRunning {
+                    Text("proxy running")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                }
                 Text("\(viewModel.sessions.count) session(s)")
                     .font(.caption)
                     .foregroundStyle(.secondary)

@@ -16,19 +16,39 @@ final class AppViewModel: ObservableObject {
     @Published var authorityInfo: CertificateAuthorityInfo?
     @Published var isRefreshing: Bool = false
     @Published var autoRefreshEnabled: Bool = true
+    @Published var proxyWorkingDirectoryText: String = FileManager.default.currentDirectoryPath
+    @Published var proxyCommandText: String = ""
+    @Published var proxyStatusText: String = "Proxy process not started"
+    @Published var proxyLogText: String = ""
+    @Published var isProxyRunning: Bool = false
 
     var isConnected: Bool {
         statusText == "Connected"
     }
 
     private let apiClient = APIClient()
+    private let proxyController = ProxyProcessController()
     private var autoRefreshTask: Task<Void, Never>?
+
+    init() {
+        proxyController.onOutput = { [weak self] text in
+            self?.appendProxyLog(text)
+        }
+        proxyController.onStateChange = { [weak self] isRunning, message in
+            self?.isProxyRunning = isRunning
+            self?.proxyStatusText = message
+        }
+    }
 
     deinit {
         autoRefreshTask?.cancel()
+        proxyController.stop()
     }
 
     func start() {
+        if proxyCommandText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            useSuggestedProxyCommand()
+        }
         configureAutoRefresh()
     }
 
@@ -44,6 +64,33 @@ final class AppViewModel: ObservableObject {
         }
         apiClient.updateBaseURL(url)
         await refresh()
+    }
+
+    func startProxy() {
+        do {
+            try proxyController.start(
+                command: proxyCommandText,
+                workingDirectory: proxyWorkingDirectoryText
+            )
+            appendProxyLog("\n[netclaw] start requested\n")
+        } catch {
+            proxyStatusText = error.localizedDescription
+            appendProxyLog("\n[netclaw] failed to start: \(error.localizedDescription)\n")
+        }
+    }
+
+    func stopProxy() {
+        proxyController.stop()
+    }
+
+    func clearProxyLog() {
+        proxyLogText = ""
+    }
+
+    func useSuggestedProxyCommand() {
+        let workingDir = proxyWorkingDirectoryText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let dataDir = workingDir.isEmpty ? ".netclaw-data/dev" : "\(workingDir)/.netclaw-data/dev"
+        proxyCommandText = "go run ./cmd/netclaw-proxy -proxy-listen 127.0.0.1:9090 -api-listen 127.0.0.1:9091 -data-dir \"\(dataDir)\""
     }
 
     func refresh() async {
@@ -99,6 +146,13 @@ final class AppViewModel: ObservableObject {
                 await self.refresh()
                 try? await Task.sleep(for: .seconds(2))
             }
+        }
+    }
+
+    private func appendProxyLog(_ text: String) {
+        proxyLogText.append(text)
+        if proxyLogText.count > 20000 {
+            proxyLogText = String(proxyLogText.suffix(20000))
         }
     }
 

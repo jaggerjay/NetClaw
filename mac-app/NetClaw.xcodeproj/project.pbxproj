@@ -19,6 +19,8 @@
 		A0000000000000000000000A /* SessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010A /* SessionListView.swift */; };
 		A0000000000000000000000B /* WelcomeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010B /* WelcomeDetailView.swift */; };
 		A0000000000000000000000C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000120 /* Assets.xcassets */; };
+		A0000000000000000000000D /* ProxyProcessController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010C /* ProxyProcessController.swift */; };
+		A0000000000000000000000E /* ProxyRuntimeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010D /* ProxyRuntimeView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +35,8 @@
 		A00000000000000000000109 /* SessionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDetailView.swift; sourceTree = "<group>"; };
 		A0000000000000000000010A /* SessionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionListView.swift; sourceTree = "<group>"; };
 		A0000000000000000000010B /* WelcomeDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeDetailView.swift; sourceTree = "<group>"; };
+		A0000000000000000000010C /* ProxyProcessController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxyProcessController.swift; sourceTree = "<group>"; };
+		A0000000000000000000010D /* ProxyRuntimeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxyRuntimeView.swift; sourceTree = "<group>"; };
 		A00000000000000000000120 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A00000000000000000000130 /* NetClaw.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NetClaw.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -83,6 +87,7 @@
 			isa = PBXGroup;
 			children = (
 				A00000000000000000000105 /* APIClient.swift */,
+				A0000000000000000000010C /* ProxyProcessController.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -103,6 +108,7 @@
 				A00000000000000000000109 /* SessionDetailView.swift */,
 				A0000000000000000000010A /* SessionListView.swift */,
 				A0000000000000000000010B /* WelcomeDetailView.swift */,
+				A0000000000000000000010D /* ProxyRuntimeView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -195,6 +201,8 @@
 				A00000000000000000000009 /* SessionDetailView.swift in Sources */,
 				A0000000000000000000000A /* SessionListView.swift in Sources */,
 				A0000000000000000000000B /* WelcomeDetailView.swift in Sources */,
+				A0000000000000000000000D /* ProxyProcessController.swift in Sources */,
+				A0000000000000000000000E /* ProxyRuntimeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
