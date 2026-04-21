@@ -18,7 +18,16 @@ import (
 
 func main() {
 	cfg := proxy.DefaultConfig()
-	st := store.NewMemoryStore()
+
+	st, err := store.NewSQLiteStore(filepath.Join(cfg.DataDir, "sessions.sqlite"))
+	if err != nil {
+		log.Fatalf("session store setup failed: %v", err)
+	}
+	defer func() {
+		if err := st.Close(); err != nil {
+			log.Printf("session store close error: %v", err)
+		}
+	}()
 
 	authority, err := cert.NewAuthority(filepath.Join(cfg.DataDir, "certs"))
 	if err != nil {
@@ -32,6 +41,7 @@ func main() {
 	}
 
 	log.Printf("root CA certificate: %s", authority.Info().CertificatePath)
+	log.Printf("session database: %s", filepath.Join(cfg.DataDir, "sessions.sqlite"))
 
 	go func() {
 		log.Printf("proxy listening on %s", cfg.ListenAddress)

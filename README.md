@@ -24,6 +24,7 @@ This workspace currently contains a first-pass project skeleton and design docs,
 - local CA / leaf certificate generation scaffold
 - MITM request/response and fallback scaffolds
 - upstream TLS transport/error-handling scaffold
+- SQLite-backed session persistence
 - local sessions API with basic filtering (`q`, `host`, `method`, `has_error`, `tls_intercepted`, `limit`)
 - SwiftUI viewer shell with basic filter controls
 
