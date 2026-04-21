@@ -45,7 +45,7 @@ func TestListSessionsFilters(t *testing.T) {
 		TLSIntercepted: false,
 	})
 
-	ts := httptest.NewServer(NewServer(st, nil).Handler())
+	ts := httptest.NewServer(NewServer(st, nil, RuntimeInfo{}).Handler())
 	defer ts.Close()
 
 	resp, err := http.Get(ts.URL + "/api/sessions?host=api.example.com&method=POST&has_error=true&tls_intercepted=false&limit=1")
@@ -67,6 +67,37 @@ func TestListSessionsFilters(t *testing.T) {
 	}
 	if items[0].ID != "2" {
 		t.Fatalf("items[0].ID = %q, want %q", items[0].ID, "2")
+	}
+}
+
+func TestRuntimeInfo(t *testing.T) {
+	t.Parallel()
+
+	st := store.NewMemoryStore()
+	ts := httptest.NewServer(NewServer(st, nil, RuntimeInfo{
+		ProxyListenAddress: "127.0.0.1:9090",
+		APIListenAddress:   "127.0.0.1:9091",
+		DataDir:            ".netclaw-data/dev",
+		CertificatePath:    ".netclaw-data/dev/certs/netclaw-root-ca.pem",
+	}).Handler())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/runtime-info")
+	if err != nil {
+		t.Fatalf("GET /api/runtime-info error = %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var info RuntimeInfo
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		t.Fatalf("decode error = %v", err)
+	}
+	if info.ProxyListenAddress != "127.0.0.1:9090" {
+		t.Fatalf("ProxyListenAddress = %q", info.ProxyListenAddress)
 	}
 }
 

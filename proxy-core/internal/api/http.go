@@ -10,13 +10,21 @@ import (
 	"netclaw/proxy-core/internal/store"
 )
 
-type Server struct {
-	store     store.SessionStore
-	authority *cert.Authority
+type RuntimeInfo struct {
+	ProxyListenAddress string `json:"proxyListenAddress"`
+	APIListenAddress   string `json:"apiListenAddress"`
+	DataDir            string `json:"dataDir"`
+	CertificatePath    string `json:"certificatePath"`
 }
 
-func NewServer(st store.SessionStore, authority *cert.Authority) *Server {
-	return &Server{store: st, authority: authority}
+type Server struct {
+	store       store.SessionStore
+	authority   *cert.Authority
+	runtimeInfo RuntimeInfo
+}
+
+func NewServer(st store.SessionStore, authority *cert.Authority, runtimeInfo RuntimeInfo) *Server {
+	return &Server{store: st, authority: authority, runtimeInfo: runtimeInfo}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -25,6 +33,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/sessions", s.listSessions)
 	mux.HandleFunc("/api/sessions/", s.getSession)
 	mux.HandleFunc("/api/certificate-authority", s.certificateAuthorityInfo)
+	mux.HandleFunc("/api/runtime-info", s.getRuntimeInfo)
 	return mux
 }
 
@@ -100,6 +109,10 @@ func (s *Server) certificateAuthorityInfo(w http.ResponseWriter, _ *http.Request
 		return
 	}
 	writeJSON(w, http.StatusOK, s.authority.Info())
+}
+
+func (s *Server) getRuntimeInfo(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, s.runtimeInfo)
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

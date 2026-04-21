@@ -47,6 +47,12 @@ final class APIClient {
         return try decoder.decode(CertificateAuthorityInfo.self, from: data)
     }
 
+    func fetchRuntimeInfo() async throws -> RuntimeInfo {
+        let (data, response) = try await URLSession.shared.data(from: baseURL.appendingPathComponent("/api/runtime-info"))
+        try validate(response: response)
+        return try decoder.decode(RuntimeInfo.self, from: data)
+    }
+
     func fetchSessions(query: SessionQuery = SessionQuery()) async throws -> [SessionSummary] {
         var components = URLComponents(url: baseURL.appendingPathComponent("/api/sessions"), resolvingAgainstBaseURL: false)!
         var items: [URLQueryItem] = []

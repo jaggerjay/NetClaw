@@ -14,6 +14,7 @@ final class AppViewModel: ObservableObject {
     @Published var statusText: String = "Proxy not connected"
     @Published var apiBaseURLText: String
     @Published var authorityInfo: CertificateAuthorityInfo?
+    @Published var runtimeInfo: RuntimeInfo?
     @Published var isRefreshing: Bool = false
     @Published var autoRefreshEnabled: Bool
     @Published var proxyWorkingDirectoryText: String
@@ -175,9 +176,11 @@ final class AppViewModel: ObservableObject {
         do {
             _ = try await apiClient.fetchHealth()
             async let authority = try? apiClient.fetchCertificateAuthorityInfo()
+            async let runtimeInfo = try? apiClient.fetchRuntimeInfo()
             async let items = apiClient.fetchSessions(query: currentQuery)
             sessions = try await items
             authorityInfo = await authority
+            self.runtimeInfo = await runtimeInfo
             statusText = "Connected"
             lastErrorText = nil
 
@@ -192,6 +195,7 @@ final class AppViewModel: ObservableObject {
             lastErrorText = error.localizedDescription
             sessions = []
             authorityInfo = nil
+            runtimeInfo = nil
             selectedSession = nil
         }
     }

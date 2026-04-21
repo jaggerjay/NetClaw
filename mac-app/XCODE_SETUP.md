@@ -27,6 +27,7 @@ When the app opens:
 6. Confirm proxy logs appear and the API status turns green
 7. Use **Quick Check** if you want to ping the local API on demand
 8. The app will remember your recent launch settings
+9. Use the built-in Setup Guide panel for proxy host/port and CA trust reminders
 
 ### Option B: start it manually from Terminal
 

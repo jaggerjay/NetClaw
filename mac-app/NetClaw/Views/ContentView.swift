@@ -38,6 +38,11 @@ struct ContentView: View {
                             onApplyBaseURL: { Task { await viewModel.applyAPIBaseURL() } },
                             onToggleAutoRefresh: { value in viewModel.setAutoRefreshEnabled(value) }
                         )
+
+                        SetupGuideView(
+                            runtimeInfo: viewModel.runtimeInfo,
+                            authorityInfo: viewModel.authorityInfo
+                        )
                     }
                     .padding()
                 }

@@ -44,10 +44,17 @@ func main() {
 		log.Fatalf("certificate authority setup failed: %v", err)
 	}
 
+	runtimeInfo := api.RuntimeInfo{
+		ProxyListenAddress: cfg.ListenAddress,
+		APIListenAddress:   apiListen,
+		DataDir:            cfg.DataDir,
+		CertificatePath:    authority.Info().CertificatePath,
+	}
+
 	proxyServer := proxy.NewServer(cfg, st, authority)
 	apiServer := &http.Server{
 		Addr:    apiListen,
-		Handler: api.NewServer(st, authority).Handler(),
+		Handler: api.NewServer(st, authority, runtimeInfo).Handler(),
 	}
 
 	log.Printf("root CA certificate: %s", authority.Info().CertificatePath)
