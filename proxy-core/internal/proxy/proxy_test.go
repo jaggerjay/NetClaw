@@ -1,10 +1,15 @@
 package proxy
 
 import (
+	"bufio"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"netclaw/proxy-core/internal/store"
 )
@@ -53,5 +58,61 @@ func TestHandleHTTPProxyRequestCapturesSession(t *testing.T) {
 	}
 	if items[0].Host != req.URL.Hostname() {
 		t.Fatalf("captured host = %q, want %q", items[0].Host, req.URL.Hostname())
+	}
+}
+
+func TestConnectRequestGetsTunnelEstablishedInsteadOfMuxRedirect(t *testing.T) {
+	t.Parallel()
+
+	upstream, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("net.Listen upstream error = %v", err)
+	}
+	defer upstream.Close()
+
+	go func() {
+		conn, err := upstream.Accept()
+		if err == nil {
+			_ = conn.Close()
+		}
+	}()
+
+	proxyListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("net.Listen proxy error = %v", err)
+	}
+	proxyAddr := proxyListener.Addr().String()
+	_ = proxyListener.Close()
+
+	cfg := DefaultConfig()
+	cfg.ListenAddress = proxyAddr
+	st := store.NewMemoryStore()
+	s := NewServer(cfg, st, nil)
+
+	go func() {
+		_ = s.Start()
+	}()
+	defer func() { _ = s.Close() }()
+
+	time.Sleep(100 * time.Millisecond)
+
+	conn, err := net.Dial("tcp", proxyAddr)
+	if err != nil {
+		t.Fatalf("net.Dial proxy error = %v", err)
+	}
+	defer conn.Close()
+
+	_, err = fmt.Fprintf(conn, "CONNECT %s HTTP/1.1\r\nHost: %s\r\n\r\n", upstream.Addr().String(), upstream.Addr().String())
+	if err != nil {
+		t.Fatalf("write CONNECT error = %v", err)
+	}
+
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	statusLine, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		t.Fatalf("read status line error = %v", err)
+	}
+	if !strings.Contains(statusLine, "200 Connection Established") {
+		t.Fatalf("status line = %q, want 200 Connection Established", statusLine)
 	}
 }

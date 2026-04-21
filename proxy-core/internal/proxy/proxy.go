@@ -55,12 +55,9 @@ func NewServer(cfg Config, st store.SessionStore, authority *cert.Authority) *Se
 		fallbackCache: newFallbackCache(),
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", s.handle)
-
 	s.httpSrv = &http.Server{
 		Addr:    cfg.ListenAddress,
-		Handler: mux,
+		Handler: http.HandlerFunc(s.handle),
 	}
 
 	return s
