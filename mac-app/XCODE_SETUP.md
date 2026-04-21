@@ -22,9 +22,11 @@ When the app opens:
 1. Click **Choose…** and select your local `proxy-core` folder
 2. Click **Suggested** to fill a launch command
 3. Or click **Build+Run** if you want the app to build a local debug binary first
-4. Click **Start Proxy**
-5. Confirm proxy logs appear and the API status turns green
-6. The app will remember your recent launch settings
+4. Click **Validate** to confirm the directory / command / Go setup look sane
+5. Click **Start Proxy**
+6. Confirm proxy logs appear and the API status turns green
+7. Use **Quick Check** if you want to ping the local API on demand
+8. The app will remember your recent launch settings
 
 ### Option B: start it manually from Terminal
 

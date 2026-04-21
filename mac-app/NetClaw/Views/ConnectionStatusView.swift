@@ -7,7 +7,9 @@ struct ConnectionStatusView: View {
     let isRefreshing: Bool
     let autoRefreshEnabled: Bool
     let authorityInfo: CertificateAuthorityInfo?
+    let lastErrorText: String?
     let onRefresh: () -> Void
+    let onQuickCheck: () -> Void
     let onApplyBaseURL: () -> Void
     let onToggleAutoRefresh: (Bool) -> Void
 
@@ -29,10 +31,16 @@ struct ConnectionStatusView: View {
                 Button("Apply") {
                     onApplyBaseURL()
                 }
+                Button("Apply") {
+                    onApplyBaseURL()
+                }
                 Button("Refresh") {
                     onRefresh()
                 }
                 .keyboardShortcut("r", modifiers: [.command])
+                Button("Quick Check") {
+                    onQuickCheck()
+                }
             }
 
             Toggle("Auto refresh every 2 seconds", isOn: Binding(
@@ -40,6 +48,14 @@ struct ConnectionStatusView: View {
                 set: onToggleAutoRefresh
             ))
             .toggleStyle(.switch)
+
+            if let lastErrorText, !lastErrorText.isEmpty {
+                Divider()
+                Label(lastErrorText, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .textSelection(.enabled)
+            }
 
             Divider()
 

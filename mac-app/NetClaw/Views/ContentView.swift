@@ -12,11 +12,13 @@ struct ContentView: View {
                             workingDirectoryText: $viewModel.proxyWorkingDirectoryText,
                             commandText: $viewModel.proxyCommandText,
                             proxyStatusText: viewModel.proxyStatusText,
+                            proxyValidationText: viewModel.proxyValidationText,
                             isProxyRunning: viewModel.isProxyRunning,
                             logText: viewModel.proxyLogText,
                             onStart: { viewModel.startProxy() },
                             onStop: { viewModel.stopProxy() },
                             onClearLog: { viewModel.clearProxyLog() },
+                            onValidate: { viewModel.validateProxyLaunchSettings() },
                             onUseSuggestedCommand: { viewModel.useSuggestedProxyCommand() },
                             onUseDebugBuildCommand: { viewModel.useDebugBuildCommand() },
                             onUseRepoRootSuggestion: { viewModel.useRepoRootSuggestion() },
@@ -30,7 +32,9 @@ struct ContentView: View {
                             isRefreshing: viewModel.isRefreshing,
                             autoRefreshEnabled: viewModel.autoRefreshEnabled,
                             authorityInfo: viewModel.authorityInfo,
+                            lastErrorText: viewModel.lastErrorText,
                             onRefresh: { Task { await viewModel.refresh() } },
+                            onQuickCheck: { Task { await viewModel.quickHealthCheck() } },
                             onApplyBaseURL: { Task { await viewModel.applyAPIBaseURL() } },
                             onToggleAutoRefresh: { value in viewModel.setAutoRefreshEnabled(value) }
                         )

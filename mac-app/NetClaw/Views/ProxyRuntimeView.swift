@@ -5,11 +5,13 @@ struct ProxyRuntimeView: View {
     @Binding var workingDirectoryText: String
     @Binding var commandText: String
     let proxyStatusText: String
+    let proxyValidationText: String
     let isProxyRunning: Bool
     let logText: String
     let onStart: () -> Void
     let onStop: () -> Void
     let onClearLog: () -> Void
+    let onValidate: () -> Void
     let onUseSuggestedCommand: () -> Void
     let onUseDebugBuildCommand: () -> Void
     let onUseRepoRootSuggestion: () -> Void
@@ -29,6 +31,9 @@ struct ProxyRuntimeView: View {
                 }
                 Button("Build+Run") {
                     onUseDebugBuildCommand()
+                }
+                Button("Validate") {
+                    onValidate()
                 }
                 Button("Start Proxy") {
                     onStart()
@@ -72,6 +77,12 @@ struct ProxyRuntimeView: View {
                     )
             }
 
+            if !proxyValidationText.isEmpty {
+                Label(proxyValidationText, systemImage: proxyValidationText.contains("valid") ? "checkmark.seal" : "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(proxyValidationText.contains("valid") ? .green : .orange)
+            }
+
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text("Proxy Logs")
@@ -95,7 +106,7 @@ struct ProxyRuntimeView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
 
-            Text("Tip: choose your local proxy-core folder, then use Suggested for a fast start or Build+Run to compile a local binary first.")
+            Text("Tip: choose your local proxy-core folder, validate the settings, then use Suggested for a fast start or Build+Run to compile a local binary first.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

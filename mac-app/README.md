@@ -7,9 +7,11 @@ SwiftUI-based macOS test shell for the NetClaw proxy core.
 - checked-in `NetClaw.xcodeproj`
 - start / stop local proxy-core from the app
 - folder picker for local `proxy-core` path
+- startup validation for working directory / command / Go availability
 - editable working directory and launch command
 - saved recent launch settings via `UserDefaults`
 - inline proxy logs
+- quick API health check and clearer error display
 - configurable local API base URL
 - connection health indicator
 - auto-refreshing session list

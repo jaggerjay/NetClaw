@@ -19,8 +19,10 @@ final class AppViewModel: ObservableObject {
     @Published var proxyWorkingDirectoryText: String
     @Published var proxyCommandText: String
     @Published var proxyStatusText: String = "Proxy process not started"
+    @Published var proxyValidationText: String = ""
     @Published var proxyLogText: String = ""
     @Published var isProxyRunning: Bool = false
+    @Published var lastErrorText: String?
 
     static let apiBaseURLKey = "netclaw.apiBaseURL"
     static let proxyWorkingDirectoryKey = "netclaw.proxyWorkingDirectory"
@@ -80,12 +82,14 @@ final class AppViewModel: ObservableObject {
     func updateWorkingDirectory(_ path: String) {
         proxyWorkingDirectoryText = path
         defaults.set(path, forKey: Self.proxyWorkingDirectoryKey)
+        validateProxyLaunchSettings()
     }
 
     func applyAPIBaseURL() async {
         let trimmed = apiBaseURLText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: trimmed) else {
             statusText = "Invalid API base URL"
+            lastErrorText = "The API base URL is not a valid URL"
             return
         }
         defaults.set(trimmed, forKey: Self.apiBaseURLKey)
@@ -93,16 +97,45 @@ final class AppViewModel: ObservableObject {
         await refresh()
     }
 
+    func quickHealthCheck() async {
+        await refresh()
+    }
+
+    func validateProxyLaunchSettings() {
+        let result = proxyController.validateLaunch(
+            command: proxyCommandText,
+            workingDirectory: proxyWorkingDirectoryText
+        )
+        proxyValidationText = result.message
+        if !result.success {
+            lastErrorText = result.message
+        }
+    }
+
     func startProxy() {
         persistLaunchSettings()
+        let validation = proxyController.validateLaunch(
+            command: proxyCommandText,
+            workingDirectory: proxyWorkingDirectoryText
+        )
+        proxyValidationText = validation.message
+        guard validation.success else {
+            proxyStatusText = validation.message
+            lastErrorText = validation.message
+            appendProxyLog("\n[netclaw] launch validation failed: \(validation.message)\n")
+            return
+        }
+
         do {
             try proxyController.start(
                 command: proxyCommandText,
                 workingDirectory: proxyWorkingDirectoryText
             )
+            lastErrorText = nil
             appendProxyLog("\n[netclaw] start requested\n")
         } catch {
             proxyStatusText = error.localizedDescription
+            lastErrorText = error.localizedDescription
             appendProxyLog("\n[netclaw] failed to start: \(error.localizedDescription)\n")
         }
     }
@@ -120,11 +153,13 @@ final class AppViewModel: ObservableObject {
         let dataDir = workingDir.isEmpty ? ".netclaw-data/dev" : "\(workingDir)/.netclaw-data/dev"
         proxyCommandText = "go run ./cmd/netclaw-proxy -proxy-listen 127.0.0.1:9090 -api-listen 127.0.0.1:9091 -data-dir \"\(dataDir)\""
         defaults.set(proxyCommandText, forKey: Self.proxyCommandKey)
+        validateProxyLaunchSettings()
     }
 
     func useDebugBuildCommand() {
         proxyCommandText = "go build -o ./.netclaw-data/dev/netclaw-proxy ./cmd/netclaw-proxy && ./.netclaw-data/dev/netclaw-proxy -proxy-listen 127.0.0.1:9090 -api-listen 127.0.0.1:9091 -data-dir ./.netclaw-data/dev"
         defaults.set(proxyCommandText, forKey: Self.proxyCommandKey)
+        validateProxyLaunchSettings()
     }
 
     func useRepoRootSuggestion() {
@@ -144,6 +179,7 @@ final class AppViewModel: ObservableObject {
             sessions = try await items
             authorityInfo = await authority
             statusText = "Connected"
+            lastErrorText = nil
 
             if let selectedSessionID,
                sessions.contains(where: { $0.id == selectedSessionID }) {
@@ -153,6 +189,7 @@ final class AppViewModel: ObservableObject {
             }
         } catch {
             statusText = "Unable to reach local proxy API"
+            lastErrorText = error.localizedDescription
             sessions = []
             authorityInfo = nil
             selectedSession = nil
