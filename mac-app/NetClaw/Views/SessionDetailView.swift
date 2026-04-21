@@ -201,9 +201,17 @@ struct SessionDetailView: View {
     private func renderBody(_ data: Data, contentType: String, encoding: String?) -> String {
         if isJSON(contentType: contentType),
            let object = try? JSONSerialization.jsonObject(with: data),
-           let pretty = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted]),
+           let pretty = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]),
            let text = String(data: pretty, encoding: .utf8) {
             return text
+        }
+        if isFormURLEncoded(contentType: contentType),
+           let text = String(data: data, encoding: .utf8) {
+            return prettyFormURLEncoded(text)
+        }
+        if isXML(contentType: contentType),
+           let prettyXML = prettyXMLString(data: data) {
+            return prettyXML
         }
         if let text = String(data: data, encoding: .utf8) {
             return text
@@ -216,6 +224,41 @@ struct SessionDetailView: View {
 
     private func isJSON(contentType: String) -> Bool {
         contentType.localizedCaseInsensitiveContains("json")
+    }
+
+    private func isFormURLEncoded(contentType: String) -> Bool {
+        contentType.localizedCaseInsensitiveContains("application/x-www-form-urlencoded")
+    }
+
+    private func isXML(contentType: String) -> Bool {
+        let lowered = contentType.lowercased()
+        return lowered.contains("xml") || lowered.contains("+xml")
+    }
+
+    private func prettyFormURLEncoded(_ text: String) -> String {
+        text
+            .split(separator: "&", omittingEmptySubsequences: false)
+            .map { pair in
+                let parts = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+                let rawKey = parts.first.map(String.init) ?? ""
+                let rawValue = parts.count > 1 ? String(parts[1]) : ""
+                return "\(decodeFormComponent(rawKey)): \(decodeFormComponent(rawValue))"
+            }
+            .joined(separator: "\n")
+    }
+
+    private func decodeFormComponent(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "+", with: " ")
+            .removingPercentEncoding ?? value
+    }
+
+    private func prettyXMLString(data: Data) -> String? {
+        guard let document = try? XMLDocument(data: data, options: [.nodePreserveAll]) else {
+            return nil
+        }
+        document.characterEncoding = "utf-8"
+        return document.xmlString(options: [.nodePrettyPrint])
     }
 
     private func renderImage(data: Data, contentType: String) -> NSImage? {
