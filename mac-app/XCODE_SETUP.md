@@ -19,10 +19,12 @@ You now have two options.
 
 When the app opens:
 
-1. Set **Working Directory** to your local `proxy-core` folder
+1. Click **Choose…** and select your local `proxy-core` folder
 2. Click **Suggested** to fill a launch command
-3. Click **Start Proxy**
-4. Confirm proxy logs appear and the API status turns green
+3. Or click **Build+Run** if you want the app to build a local debug binary first
+4. Click **Start Proxy**
+5. Confirm proxy logs appear and the API status turns green
+6. The app will remember your recent launch settings
 
 ### Option B: start it manually from Terminal
 

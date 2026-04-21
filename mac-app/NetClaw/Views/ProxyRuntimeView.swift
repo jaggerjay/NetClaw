@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct ProxyRuntimeView: View {
     @Binding var workingDirectoryText: String
@@ -10,6 +11,9 @@ struct ProxyRuntimeView: View {
     let onStop: () -> Void
     let onClearLog: () -> Void
     let onUseSuggestedCommand: () -> Void
+    let onUseDebugBuildCommand: () -> Void
+    let onUseRepoRootSuggestion: () -> Void
+    let onWorkingDirectorySelected: (String) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -17,8 +21,14 @@ struct ProxyRuntimeView: View {
                 Label(proxyStatusText, systemImage: isProxyRunning ? "bolt.fill" : "bolt.slash")
                     .foregroundStyle(isProxyRunning ? .green : .secondary)
                 Spacer()
+                Button("Repo Hint") {
+                    onUseRepoRootSuggestion()
+                }
                 Button("Suggested") {
                     onUseSuggestedCommand()
+                }
+                Button("Build+Run") {
+                    onUseDebugBuildCommand()
                 }
                 Button("Start Proxy") {
                     onStart()
@@ -34,8 +44,13 @@ struct ProxyRuntimeView: View {
                 Text("Working Directory")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                TextField("/path/to/netclaw-repo/proxy-core", text: $workingDirectoryText)
-                    .textFieldStyle(.roundedBorder)
+                HStack {
+                    TextField("/path/to/netclaw-repo/proxy-core", text: $workingDirectoryText)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Choose…") {
+                        chooseDirectory()
+                    }
+                }
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -50,7 +65,7 @@ struct ProxyRuntimeView: View {
                 }
                 TextEditor(text: $commandText)
                     .font(.system(.caption, design: .monospaced))
-                    .frame(minHeight: 80)
+                    .frame(minHeight: 100)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
@@ -80,11 +95,25 @@ struct ProxyRuntimeView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
 
-            Text("Tip: set the working directory to your local proxy-core folder, then use the suggested command or customize it.")
+            Text("Tip: choose your local proxy-core folder, then use Suggested for a fast start or Build+Run to compile a local binary first.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .padding()
         .background(.thinMaterial)
+    }
+
+    private func chooseDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+        panel.prompt = "Choose"
+        panel.message = "Select your local proxy-core directory"
+
+        if panel.runModal() == .OK, let url = panel.url {
+            onWorkingDirectorySelected(url.path)
+        }
     }
 }

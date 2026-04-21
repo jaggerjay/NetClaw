@@ -12,25 +12,44 @@ final class AppViewModel: ObservableObject {
     @Published var hasErrorOnly: Bool = false
     @Published var interceptedOnly: Bool = false
     @Published var statusText: String = "Proxy not connected"
-    @Published var apiBaseURLText: String = "http://127.0.0.1:9091"
+    @Published var apiBaseURLText: String
     @Published var authorityInfo: CertificateAuthorityInfo?
     @Published var isRefreshing: Bool = false
-    @Published var autoRefreshEnabled: Bool = true
-    @Published var proxyWorkingDirectoryText: String = FileManager.default.currentDirectoryPath
-    @Published var proxyCommandText: String = ""
+    @Published var autoRefreshEnabled: Bool
+    @Published var proxyWorkingDirectoryText: String
+    @Published var proxyCommandText: String
     @Published var proxyStatusText: String = "Proxy process not started"
     @Published var proxyLogText: String = ""
     @Published var isProxyRunning: Bool = false
+
+    static let apiBaseURLKey = "netclaw.apiBaseURL"
+    static let proxyWorkingDirectoryKey = "netclaw.proxyWorkingDirectory"
+    static let proxyCommandKey = "netclaw.proxyCommand"
+    static let autoRefreshKey = "netclaw.autoRefresh"
 
     var isConnected: Bool {
         statusText == "Connected"
     }
 
-    private let apiClient = APIClient()
+    private let defaults: UserDefaults
+    private let apiClient: APIClient
     private let proxyController = ProxyProcessController()
     private var autoRefreshTask: Task<Void, Never>?
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+
+        let defaultAPIBaseURL = defaults.string(forKey: Self.apiBaseURLKey) ?? "http://127.0.0.1:9091"
+        let defaultWorkingDirectory = defaults.string(forKey: Self.proxyWorkingDirectoryKey) ?? FileManager.default.currentDirectoryPath
+        let defaultAutoRefresh = defaults.object(forKey: Self.autoRefreshKey) as? Bool ?? true
+        let defaultCommand = defaults.string(forKey: Self.proxyCommandKey) ?? ""
+
+        apiBaseURLText = defaultAPIBaseURL
+        proxyWorkingDirectoryText = defaultWorkingDirectory
+        proxyCommandText = defaultCommand
+        autoRefreshEnabled = defaultAutoRefresh
+        apiClient = APIClient(baseURL: URL(string: defaultAPIBaseURL) ?? URL(string: "http://127.0.0.1:9091")!)
+
         proxyController.onOutput = { [weak self] text in
             self?.appendProxyLog(text)
         }
@@ -54,19 +73,28 @@ final class AppViewModel: ObservableObject {
 
     func setAutoRefreshEnabled(_ enabled: Bool) {
         autoRefreshEnabled = enabled
+        defaults.set(enabled, forKey: Self.autoRefreshKey)
         configureAutoRefresh()
     }
 
+    func updateWorkingDirectory(_ path: String) {
+        proxyWorkingDirectoryText = path
+        defaults.set(path, forKey: Self.proxyWorkingDirectoryKey)
+    }
+
     func applyAPIBaseURL() async {
-        guard let url = URL(string: apiBaseURLText.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+        let trimmed = apiBaseURLText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed) else {
             statusText = "Invalid API base URL"
             return
         }
+        defaults.set(trimmed, forKey: Self.apiBaseURLKey)
         apiClient.updateBaseURL(url)
         await refresh()
     }
 
     func startProxy() {
+        persistLaunchSettings()
         do {
             try proxyController.start(
                 command: proxyCommandText,
@@ -91,6 +119,18 @@ final class AppViewModel: ObservableObject {
         let workingDir = proxyWorkingDirectoryText.trimmingCharacters(in: .whitespacesAndNewlines)
         let dataDir = workingDir.isEmpty ? ".netclaw-data/dev" : "\(workingDir)/.netclaw-data/dev"
         proxyCommandText = "go run ./cmd/netclaw-proxy -proxy-listen 127.0.0.1:9090 -api-listen 127.0.0.1:9091 -data-dir \"\(dataDir)\""
+        defaults.set(proxyCommandText, forKey: Self.proxyCommandKey)
+    }
+
+    func useDebugBuildCommand() {
+        proxyCommandText = "go build -o ./.netclaw-data/dev/netclaw-proxy ./cmd/netclaw-proxy && ./.netclaw-data/dev/netclaw-proxy -proxy-listen 127.0.0.1:9090 -api-listen 127.0.0.1:9091 -data-dir ./.netclaw-data/dev"
+        defaults.set(proxyCommandText, forKey: Self.proxyCommandKey)
+    }
+
+    func useRepoRootSuggestion() {
+        let cwd = FileManager.default.currentDirectoryPath
+        let candidate = (cwd as NSString).appendingPathComponent("proxy-core")
+        updateWorkingDirectory(candidate)
     }
 
     func refresh() async {
@@ -154,6 +194,11 @@ final class AppViewModel: ObservableObject {
         if proxyLogText.count > 20000 {
             proxyLogText = String(proxyLogText.suffix(20000))
         }
+    }
+
+    private func persistLaunchSettings() {
+        defaults.set(proxyWorkingDirectoryText, forKey: Self.proxyWorkingDirectoryKey)
+        defaults.set(proxyCommandText, forKey: Self.proxyCommandKey)
     }
 
     private var currentQuery: SessionQuery {

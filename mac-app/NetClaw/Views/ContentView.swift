@@ -17,7 +17,10 @@ struct ContentView: View {
                             onStart: { viewModel.startProxy() },
                             onStop: { viewModel.stopProxy() },
                             onClearLog: { viewModel.clearProxyLog() },
-                            onUseSuggestedCommand: { viewModel.useSuggestedProxyCommand() }
+                            onUseSuggestedCommand: { viewModel.useSuggestedProxyCommand() },
+                            onUseDebugBuildCommand: { viewModel.useDebugBuildCommand() },
+                            onUseRepoRootSuggestion: { viewModel.useRepoRootSuggestion() },
+                            onWorkingDirectorySelected: { path in viewModel.updateWorkingDirectory(path) }
                         )
 
                         ConnectionStatusView(
