@@ -28,4 +28,9 @@ This workspace currently contains a first-pass project skeleton and design docs,
 - local sessions API with basic filtering (`q`, `host`, `method`, `has_error`, `tls_intercepted`, `limit`)
 - SwiftUI viewer shell with basic filter controls
 
+## Body capture note
+
+- `-max-body-bytes 0` means unlimited body capture
+- positive values cap stored request/response body bytes per item
+
 The Go and Swift toolchains were not available in the current environment, so the code is provided as a scaffold and should be built on a macOS development machine with Go and Xcode installed.

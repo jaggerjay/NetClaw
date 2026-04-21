@@ -25,7 +25,7 @@ func main() {
 	flag.StringVar(&apiListen, "api-listen", apiListen, "API listen address")
 	flag.StringVar(&cfg.DataDir, "data-dir", cfg.DataDir, "data directory for certificates and session database")
 	flag.BoolVar(&cfg.CaptureBodies, "capture-bodies", cfg.CaptureBodies, "capture request/response bodies")
-	flag.Int64Var(&cfg.MaxBodyBytes, "max-body-bytes", cfg.MaxBodyBytes, "maximum captured bytes per request/response body")
+	flag.Int64Var(&cfg.MaxBodyBytes, "max-body-bytes", cfg.MaxBodyBytes, "maximum captured bytes per request/response body (0 = unlimited)")
 	flag.BoolVar(&cfg.UpstreamTLSSkipVerify, "upstream-tls-skip-verify", cfg.UpstreamTLSSkipVerify, "skip upstream TLS certificate verification")
 	flag.Parse()
 

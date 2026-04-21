@@ -357,6 +357,14 @@ func cloneBody(rc io.ReadCloser, limit int64) ([]byte, io.ReadCloser, int64, boo
 	}
 	defer rc.Close()
 
+	if limit <= 0 {
+		data, err := io.ReadAll(rc)
+		if err != nil {
+			return nil, io.NopCloser(bytes.NewReader(nil)), 0, false, err
+		}
+		return data, io.NopCloser(bytes.NewReader(data)), int64(len(data)), false, nil
+	}
+
 	limited := io.LimitReader(rc, limit+1)
 	data, err := io.ReadAll(limited)
 	if err != nil {

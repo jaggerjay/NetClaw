@@ -61,6 +61,32 @@ func TestHandleHTTPProxyRequestCapturesSession(t *testing.T) {
 	}
 }
 
+func TestCloneBodyUnlimitedWhenMaxBodyBytesIsZero(t *testing.T) {
+	t.Parallel()
+
+	original := strings.Repeat("abc", 1024)
+	data, restored, size, truncated, err := cloneBody(io.NopCloser(strings.NewReader(original)), 0)
+	if err != nil {
+		t.Fatalf("cloneBody() error = %v", err)
+	}
+	if truncated {
+		t.Fatalf("cloneBody() truncated = true, want false")
+	}
+	if size != int64(len(original)) {
+		t.Fatalf("cloneBody() size = %d, want %d", size, len(original))
+	}
+	if string(data) != original {
+		t.Fatalf("cloneBody() data mismatch")
+	}
+	restoredData, err := io.ReadAll(restored)
+	if err != nil {
+		t.Fatalf("ReadAll(restored) error = %v", err)
+	}
+	if string(restoredData) != original {
+		t.Fatalf("restored body mismatch")
+	}
+}
+
 func TestConnectRequestGetsTunnelEstablishedInsteadOfMuxRedirect(t *testing.T) {
 	t.Parallel()
 
