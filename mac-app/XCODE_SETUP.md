@@ -31,6 +31,7 @@ When the app opens:
 10. Inspect CONNECT sessions in the detail view to verify capture mode and tunnel byte counts
 11. Use **Export HAR** to save the currently filtered request set as a HAR file
 12. Check body panes for JSON pretty-printing, image preview, and truncation hints during testing
+13. Use the detail view copy actions to grab URL, headers, bodies, or a curl reproduction command
 
 ### Option B: start it manually from Terminal
 

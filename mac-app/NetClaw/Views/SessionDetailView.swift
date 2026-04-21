@@ -56,6 +56,7 @@ struct SessionDetailView: View {
                 Label("\(session.durationMs) ms", systemImage: "clock")
                     .foregroundStyle(.secondary)
             }
+            actionBar(session)
         }
     }
 
@@ -105,10 +106,19 @@ struct SessionDetailView: View {
     @ViewBuilder
     private func headersSection(title: String, headers: [String: String]) -> some View {
         GroupBox(title) {
-            Text(prettyHeaders(headers).isEmpty ? "No headers" : prettyHeaders(headers))
-                .font(.system(.body, design: .monospaced))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Spacer()
+                    Button("Copy") {
+                        copyToPasteboard(prettyHeaders(headers))
+                    }
+                    .buttonStyle(.borderless)
+                }
+                Text(prettyHeaders(headers).isEmpty ? "No headers" : prettyHeaders(headers))
+                    .font(.system(.body, design: .monospaced))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+            }
         }
     }
 
@@ -116,6 +126,7 @@ struct SessionDetailView: View {
     private func bodySection(title: String, data: Data?, contentType: String, encoding: String?, truncated: Bool, emptyText: String) -> some View {
         GroupBox(title) {
             if let data, !data.isEmpty {
+                let renderedBody = renderBody(data, contentType: contentType, encoding: encoding)
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
                         if !contentType.isEmpty {
@@ -127,6 +138,11 @@ struct SessionDetailView: View {
                         if truncated {
                             pill("TRUNCATED", color: .orange)
                         }
+                        Spacer()
+                        Button("Copy") {
+                            copyToPasteboard(renderedBody)
+                        }
+                        .buttonStyle(.borderless)
                     }
 
                     if let image = renderImage(data: data, contentType: contentType) {
@@ -136,7 +152,7 @@ struct SessionDetailView: View {
                             .frame(maxHeight: 260)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     } else {
-                        Text(renderBody(data, contentType: contentType, encoding: encoding))
+                        Text(renderedBody)
                             .font(.system(.body, design: .monospaced))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .textSelection(.enabled)
@@ -146,6 +162,34 @@ struct SessionDetailView: View {
                 Text(emptyText)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func actionBar(_ session: SessionDetail) -> some View {
+        FlowLayout(spacing: 8) {
+            actionButton("Copy URL") {
+                copyToPasteboard(session.url)
+            }
+            actionButton("Copy curl") {
+                copyToPasteboard(makeCurlCommand(session))
+            }
+            actionButton("Copy Req Headers") {
+                copyToPasteboard(prettyHeaders(session.requestHeaders))
+            }
+            actionButton("Copy Res Headers") {
+                copyToPasteboard(prettyHeaders(session.responseHeaders))
+            }
+            if let requestBody = session.requestBody, !requestBody.isEmpty {
+                actionButton("Copy Req Body") {
+                    copyToPasteboard(renderBody(requestBody, contentType: headerValue(session.requestHeaders, key: "Content-Type"), encoding: session.requestBodyEncoding))
+                }
+            }
+            if let responseBody = session.responseBody, !responseBody.isEmpty {
+                actionButton("Copy Res Body") {
+                    copyToPasteboard(renderBody(responseBody, contentType: session.contentType, encoding: session.responseBodyEncoding))
+                }
             }
         }
     }
@@ -185,6 +229,43 @@ struct SessionDetailView: View {
         headers.first { $0.key.caseInsensitiveCompare(key) == .orderedSame }?.value ?? ""
     }
 
+    private func makeCurlCommand(_ session: SessionDetail) -> String {
+        var parts: [String] = ["curl", "-X", shellEscape(session.method)]
+
+        let headerBlacklist = Set(["host", "content-length"])
+        for key in session.requestHeaders.keys.sorted() {
+            guard !headerBlacklist.contains(key.lowercased()) else { continue }
+            let value = session.requestHeaders[key] ?? ""
+            parts.append("-H")
+            parts.append(shellEscape("\(key): \(value)"))
+        }
+
+        if let body = session.requestBody, !body.isEmpty {
+            parts.append("--data-binary")
+            parts.append(shellEscape(renderBody(body, contentType: headerValue(session.requestHeaders, key: "Content-Type"), encoding: session.requestBodyEncoding)))
+        }
+
+        parts.append(shellEscape(session.url))
+        return parts.joined(separator: " ")
+    }
+
+    private func shellEscape(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    private func copyToPasteboard(_ value: String) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(value, forType: .string)
+    }
+
+    @ViewBuilder
+    private func actionButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(title, action: action)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+    }
+
     private func pill(_ text: String, color: Color) -> some View {
         Text(text)
             .font(.caption.monospaced())
@@ -193,5 +274,46 @@ struct SessionDetailView: View {
             .background(color.opacity(0.15))
             .clipShape(Capsule())
             .foregroundStyle(color)
+    }
+}
+
+private struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? 600
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > maxWidth, x > 0 {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+        }
+        return CGSize(width: maxWidth, height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > bounds.maxX, x > bounds.minX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
     }
 }
