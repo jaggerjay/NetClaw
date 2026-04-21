@@ -67,7 +67,12 @@ func (s *SQLiteStore) init() error {
 			response_size INTEGER NOT NULL,
 			content_type TEXT NOT NULL,
 			error_text TEXT NOT NULL,
-			tls_intercepted INTEGER NOT NULL
+			tls_intercepted INTEGER NOT NULL,
+			capture_mode TEXT NOT NULL DEFAULT '',
+			fallback_reason TEXT NOT NULL DEFAULT '',
+			tunnel_bytes_up INTEGER NOT NULL DEFAULT 0,
+			tunnel_bytes_down INTEGER NOT NULL DEFAULT 0,
+			tunnel_target_address TEXT NOT NULL DEFAULT ''
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_start_time ON sessions(start_time DESC);`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_host ON sessions(host);`,
@@ -76,6 +81,18 @@ func (s *SQLiteStore) init() error {
 
 	for _, statement := range statements {
 		if _, err := s.db.Exec(statement); err != nil {
+			return err
+		}
+	}
+
+	for _, migration := range []string{
+		`ALTER TABLE sessions ADD COLUMN capture_mode TEXT NOT NULL DEFAULT '';`,
+		`ALTER TABLE sessions ADD COLUMN fallback_reason TEXT NOT NULL DEFAULT '';`,
+		`ALTER TABLE sessions ADD COLUMN tunnel_bytes_up INTEGER NOT NULL DEFAULT 0;`,
+		`ALTER TABLE sessions ADD COLUMN tunnel_bytes_down INTEGER NOT NULL DEFAULT 0;`,
+		`ALTER TABLE sessions ADD COLUMN tunnel_target_address TEXT NOT NULL DEFAULT '';`,
+	} {
+		if _, err := s.db.Exec(migration); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
 			return err
 		}
 	}
@@ -98,8 +115,9 @@ func (s *SQLiteStore) Save(item session.Session) error {
 			status_code, duration_ms, client_address,
 			request_headers_json, response_headers_json,
 			request_body_base64, response_body_base64,
-			request_size, response_size, content_type, error_text, tls_intercepted
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			request_size, response_size, content_type, error_text, tls_intercepted,
+			capture_mode, fallback_reason, tunnel_bytes_up, tunnel_bytes_down, tunnel_target_address
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			start_time=excluded.start_time,
 			end_time=excluded.end_time,
@@ -120,7 +138,12 @@ func (s *SQLiteStore) Save(item session.Session) error {
 			response_size=excluded.response_size,
 			content_type=excluded.content_type,
 			error_text=excluded.error_text,
-			tls_intercepted=excluded.tls_intercepted
+			tls_intercepted=excluded.tls_intercepted,
+			capture_mode=excluded.capture_mode,
+			fallback_reason=excluded.fallback_reason,
+			tunnel_bytes_up=excluded.tunnel_bytes_up,
+			tunnel_bytes_down=excluded.tunnel_bytes_down,
+			tunnel_target_address=excluded.tunnel_target_address
 	`,
 		item.ID,
 		item.StartTime.UTC().Format(time.RFC3339Nano),
@@ -143,13 +166,19 @@ func (s *SQLiteStore) Save(item session.Session) error {
 		item.ContentType,
 		item.Error,
 		boolToInt(item.TLSIntercepted),
+		item.CaptureMode,
+		item.FallbackReason,
+		item.TunnelBytesUp,
+		item.TunnelBytesDown,
+		item.TunnelTargetAddress,
 	)
 	return err
 }
 
 func (s *SQLiteStore) List(options ListOptions) ([]session.Summary, error) {
 	rows, err := s.db.Query(`
-		SELECT id, start_time, method, host, url, status_code, duration_ms, content_type, response_size, error_text
+		SELECT id, start_time, method, host, url, status_code, duration_ms, content_type, response_size, error_text,
+			capture_mode, tls_intercepted, tunnel_bytes_up, tunnel_bytes_down
 		FROM sessions
 	`)
 	if err != nil {
@@ -164,6 +193,7 @@ func (s *SQLiteStore) List(options ListOptions) ([]session.Summary, error) {
 			startTime string
 			errorText string
 		)
+		var tlsIntercepted int
 		if err := rows.Scan(
 			&item.ID,
 			&startTime,
@@ -175,6 +205,10 @@ func (s *SQLiteStore) List(options ListOptions) ([]session.Summary, error) {
 			&item.ContentType,
 			&item.ResponseSize,
 			&errorText,
+			&item.CaptureMode,
+			&tlsIntercepted,
+			&item.TunnelBytesUp,
+			&item.TunnelBytesDown,
 		); err != nil {
 			return nil, err
 		}
@@ -184,6 +218,7 @@ func (s *SQLiteStore) List(options ListOptions) ([]session.Summary, error) {
 		}
 		item.StartTime = parsed
 		item.HasError = errorText != ""
+		item.TLSIntercepted = tlsIntercepted != 0
 		result = append(result, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -217,7 +252,8 @@ func (s *SQLiteStore) Get(id string) (*session.Session, error) {
 			status_code, duration_ms, client_address,
 			request_headers_json, response_headers_json,
 			request_body_base64, response_body_base64,
-			request_size, response_size, content_type, error_text, tls_intercepted
+			request_size, response_size, content_type, error_text, tls_intercepted,
+			capture_mode, fallback_reason, tunnel_bytes_up, tunnel_bytes_down, tunnel_target_address
 		FROM sessions
 		WHERE id = ?
 	`, id)
@@ -255,6 +291,11 @@ func (s *SQLiteStore) Get(id string) (*session.Session, error) {
 		&item.ContentType,
 		&item.Error,
 		&tlsIntercepted,
+		&item.CaptureMode,
+		&item.FallbackReason,
+		&item.TunnelBytesUp,
+		&item.TunnelBytesDown,
+		&item.TunnelTargetAddress,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errors.New("session not found")

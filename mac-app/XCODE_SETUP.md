@@ -28,6 +28,7 @@ When the app opens:
 7. Use **Quick Check** if you want to ping the local API on demand
 8. The app will remember your recent launch settings
 9. Use the built-in Setup Guide panel for proxy host/port and CA trust reminders
+10. Inspect CONNECT sessions in the detail view to verify capture mode and tunnel byte counts
 
 ### Option B: start it manually from Terminal
 

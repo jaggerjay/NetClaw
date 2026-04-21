@@ -70,11 +70,17 @@ func TestConnectRequestGetsTunnelEstablishedInsteadOfMuxRedirect(t *testing.T) {
 	}
 	defer upstream.Close()
 
+	payload := "hello-through-tunnel"
 	go func() {
 		conn, err := upstream.Accept()
-		if err == nil {
-			_ = conn.Close()
+		if err != nil {
+			return
 		}
+		defer conn.Close()
+
+		buf := make([]byte, len(payload))
+		_, _ = io.ReadFull(conn, buf)
+		_, _ = conn.Write([]byte(payload))
 	}()
 
 	proxyListener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -107,12 +113,56 @@ func TestConnectRequestGetsTunnelEstablishedInsteadOfMuxRedirect(t *testing.T) {
 		t.Fatalf("write CONNECT error = %v", err)
 	}
 
+	reader := bufio.NewReader(conn)
 	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	statusLine, err := bufio.NewReader(conn).ReadString('\n')
+	statusLine, err := reader.ReadString('\n')
 	if err != nil {
 		t.Fatalf("read status line error = %v", err)
 	}
 	if !strings.Contains(statusLine, "200 Connection Established") {
 		t.Fatalf("status line = %q, want 200 Connection Established", statusLine)
+	}
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read header line error = %v", err)
+		}
+		if line == "\r\n" {
+			break
+		}
+	}
+
+	_, err = conn.Write([]byte(payload))
+	if err != nil {
+		t.Fatalf("write tunneled payload error = %v", err)
+	}
+	response := make([]byte, len(payload))
+	_, err = io.ReadFull(reader, response)
+	if err != nil {
+		t.Fatalf("read tunneled payload error = %v", err)
+	}
+	if string(response) != payload {
+		t.Fatalf("response payload = %q, want %q", string(response), payload)
+	}
+
+	_ = conn.Close()
+	time.Sleep(100 * time.Millisecond)
+
+	items, err := st.List(store.ListOptions{Method: http.MethodConnect})
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("connect session count = %d, want 1", len(items))
+	}
+	full, err := st.Get(items[0].ID)
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	if full.CaptureMode != "connect-passthrough" {
+		t.Fatalf("CaptureMode = %q", full.CaptureMode)
+	}
+	if full.TunnelBytesUp == 0 || full.TunnelBytesDown == 0 {
+		t.Fatalf("tunnel bytes = %d/%d, want non-zero", full.TunnelBytesUp, full.TunnelBytesDown)
 	}
 }

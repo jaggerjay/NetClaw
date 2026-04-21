@@ -93,6 +93,7 @@ func (s *Server) forwardCapturedHTTP(w http.ResponseWriter, r *http.Request, sch
 		ClientAddress:  r.RemoteAddr,
 		RequestHeaders: flattenHeaders(r.Header),
 		TLSIntercepted: tlsIntercepted,
+		CaptureMode:    captureModeForHTTP(scheme, tlsIntercepted),
 	}
 
 	if s.config.CaptureBodies {
@@ -159,16 +160,18 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	host, port := splitHostPort(r.Host)
 	item := session.Session{
-		ID:            uuid.NewString(),
-		StartTime:     start,
-		EndTime:       start,
-		Scheme:        "https",
-		Method:        http.MethodConnect,
-		Host:          host,
-		Port:          port,
-		Path:          "",
-		URL:           "https://" + r.Host,
-		ClientAddress: r.RemoteAddr,
+		ID:                  uuid.NewString(),
+		StartTime:           start,
+		EndTime:             start,
+		Scheme:              "https",
+		Method:              http.MethodConnect,
+		Host:                host,
+		Port:                port,
+		Path:                "",
+		URL:                 "https://" + r.Host,
+		ClientAddress:       r.RemoteAddr,
+		CaptureMode:         "connect-tunnel",
+		TunnelTargetAddress: r.Host,
 	}
 
 	hijacker, ok := w.(http.Hijacker)
@@ -189,7 +192,27 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 	}
 	defer clientConn.Close()
 
-	if shouldBypassMITM(host, s.config.MITMBypassHosts) || s.shouldTemporarilyBypassMITM(host) || s.authority == nil {
+	if shouldBypassMITM(host, s.config.MITMBypassHosts) {
+		item.CaptureMode = "connect-passthrough"
+		item.FallbackReason = "configured-bypass"
+		if err := s.respondConnectEstablished(clientConn, &item, start); err != nil {
+			return
+		}
+		s.runConnectPassthrough(clientConn, r, &item, start)
+		return
+	}
+	if s.shouldTemporarilyBypassMITM(host) {
+		item.CaptureMode = "connect-passthrough"
+		item.FallbackReason = "temporary-mitm-backoff"
+		if err := s.respondConnectEstablished(clientConn, &item, start); err != nil {
+			return
+		}
+		s.runConnectPassthrough(clientConn, r, &item, start)
+		return
+	}
+	if s.authority == nil {
+		item.CaptureMode = "connect-passthrough"
+		item.FallbackReason = "certificate-authority-unavailable"
 		if err := s.respondConnectEstablished(clientConn, &item, start); err != nil {
 			return
 		}
@@ -197,10 +220,13 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	item.CaptureMode = "connect-mitm"
 	if err := s.runConnectMITM(clientConn, r, &item, start); err != nil {
 		s.markMITMFailure(host)
 		item.Error = err.Error()
 		item.TLSIntercepted = false
+		item.CaptureMode = "connect-mitm-failed"
+		item.FallbackReason = "mitm-handshake-or-stream-failure"
 		item.EndTime = time.Now()
 		item.DurationMS = item.EndTime.Sub(start).Milliseconds()
 		_ = s.store.Save(item)
@@ -228,6 +254,7 @@ func (s *Server) runConnectMITM(clientConn net.Conn, connectReq *http.Request, t
 	}
 
 	tunnelItem.TLSIntercepted = true
+	tunnelItem.CaptureMode = "connect-mitm"
 	tunnelItem.EndTime = time.Now()
 	tunnelItem.DurationMS = tunnelItem.EndTime.Sub(start).Milliseconds()
 	_ = s.store.Save(*tunnelItem)
@@ -278,11 +305,12 @@ func (s *Server) runConnectPassthrough(clientConn net.Conn, connectReq *http.Req
 	defer upstreamConn.Close()
 
 	var wg sync.WaitGroup
+	var bytesUp, bytesDown int64
 	wg.Add(2)
 
 	go func() {
 		defer wg.Done()
-		_, _ = io.Copy(upstreamConn, clientConn)
+		bytesUp, _ = io.Copy(upstreamConn, clientConn)
 		if tcpConn, ok := upstreamConn.(*net.TCPConn); ok {
 			_ = tcpConn.CloseWrite()
 		}
@@ -290,13 +318,15 @@ func (s *Server) runConnectPassthrough(clientConn net.Conn, connectReq *http.Req
 
 	go func() {
 		defer wg.Done()
-		_, _ = io.Copy(clientConn, upstreamConn)
+		bytesDown, _ = io.Copy(clientConn, upstreamConn)
 		if tcpConn, ok := clientConn.(*net.TCPConn); ok {
 			_ = tcpConn.CloseWrite()
 		}
 	}()
 
 	wg.Wait()
+	item.TunnelBytesUp = bytesUp
+	item.TunnelBytesDown = bytesDown
 	item.EndTime = time.Now()
 	item.DurationMS = item.EndTime.Sub(start).Milliseconds()
 	item.TLSIntercepted = false
@@ -542,4 +572,14 @@ func isExpectedDisconnect(err error) bool {
 	return errors.Is(err, io.EOF) ||
 		errors.Is(err, net.ErrClosed) ||
 		strings.Contains(strings.ToLower(err.Error()), "closed network connection")
+}
+
+func captureModeForHTTP(scheme string, tlsIntercepted bool) string {
+	if scheme == "https" && tlsIntercepted {
+		return "https-mitm-request"
+	}
+	if scheme == "https" {
+		return "https-request"
+	}
+	return "http-request"
 }

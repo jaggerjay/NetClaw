@@ -57,6 +57,17 @@ struct SessionDetailView: View {
                 LabeledContent("Response Size", value: ByteCountFormatter.string(fromByteCount: session.responseSize, countStyle: .file))
                 LabeledContent("Content Type", value: session.contentType.isEmpty ? "—" : session.contentType)
                 LabeledContent("TLS Intercepted", value: session.tlsIntercepted ? "Yes" : "No")
+                LabeledContent("Capture Mode", value: session.captureMode.isEmpty ? "—" : session.captureMode)
+                if let tunnelTargetAddress = session.tunnelTargetAddress, !tunnelTargetAddress.isEmpty {
+                    LabeledContent("Tunnel Target", value: tunnelTargetAddress)
+                }
+                if session.tunnelBytesUp > 0 || session.tunnelBytesDown > 0 {
+                    LabeledContent("Tunnel Up", value: ByteCountFormatter.string(fromByteCount: session.tunnelBytesUp, countStyle: .file))
+                    LabeledContent("Tunnel Down", value: ByteCountFormatter.string(fromByteCount: session.tunnelBytesDown, countStyle: .file))
+                }
+                if let fallbackReason = session.fallbackReason, !fallbackReason.isEmpty {
+                    LabeledContent("Fallback Reason", value: fallbackReason)
+                }
             }
             .font(.caption)
             .textSelection(.enabled)

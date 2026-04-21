@@ -22,4 +22,9 @@ struct SessionDetail: Identifiable, Decodable {
     let contentType: String
     let error: String?
     let tlsIntercepted: Bool
+    let captureMode: String
+    let fallbackReason: String?
+    let tunnelBytesUp: Int64
+    let tunnelBytesDown: Int64
+    let tunnelTargetAddress: String?
 }

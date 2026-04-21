@@ -18,6 +18,7 @@ SwiftUI-based macOS test shell for the NetClaw proxy core.
 - auto-refreshing session list
 - session search and filters
 - request / response detail view
+- CONNECT / MITM detail metadata including capture mode and tunnel byte counts
 - certificate authority info panel
 - empty-state guidance for manual testing
 
