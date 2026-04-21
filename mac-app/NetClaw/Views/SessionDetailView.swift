@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct SessionDetailView: View {
     let session: SessionDetail?
@@ -14,9 +15,23 @@ struct SessionDetailView: View {
                             errorBox(error)
                         }
                         headersSection(title: "Request Headers", headers: session.requestHeaders)
-                        bodySection(title: "Request Body", data: session.requestBody, emptyText: "No captured request body")
+                        bodySection(
+                            title: "Request Body",
+                            data: session.requestBody,
+                            contentType: headerValue(session.requestHeaders, key: "Content-Type"),
+                            encoding: session.requestBodyEncoding,
+                            truncated: session.requestBodyTruncated,
+                            emptyText: "No captured request body"
+                        )
                         headersSection(title: "Response Headers", headers: session.responseHeaders)
-                        bodySection(title: "Response Body", data: session.responseBody, emptyText: "No captured response body")
+                        bodySection(
+                            title: "Response Body",
+                            data: session.responseBody,
+                            contentType: session.contentType,
+                            encoding: session.responseBodyEncoding,
+                            truncated: session.responseBodyTruncated,
+                            emptyText: "No captured response body"
+                        )
                     }
                     .padding()
                 }
@@ -98,13 +113,35 @@ struct SessionDetailView: View {
     }
 
     @ViewBuilder
-    private func bodySection(title: String, data: Data?, emptyText: String) -> some View {
+    private func bodySection(title: String, data: Data?, contentType: String, encoding: String?, truncated: Bool, emptyText: String) -> some View {
         GroupBox(title) {
             if let data, !data.isEmpty {
-                Text(renderBody(data))
-                    .font(.system(.body, design: .monospaced))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        if !contentType.isEmpty {
+                            pill(contentType, color: .secondary)
+                        }
+                        if let encoding, !encoding.isEmpty {
+                            pill(encoding.uppercased(), color: .secondary)
+                        }
+                        if truncated {
+                            pill("TRUNCATED", color: .orange)
+                        }
+                    }
+
+                    if let image = renderImage(data: data, contentType: contentType) {
+                        Image(nsImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 260)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    } else {
+                        Text(renderBody(data, contentType: contentType, encoding: encoding))
+                            .font(.system(.body, design: .monospaced))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                    }
+                }
             } else {
                 Text(emptyText)
                     .foregroundStyle(.secondary)
@@ -117,11 +154,35 @@ struct SessionDetailView: View {
         headers.keys.sorted().map { "\($0): \(headers[$0] ?? "")" }.joined(separator: "\n")
     }
 
-    private func renderBody(_ data: Data) -> String {
+    private func renderBody(_ data: Data, contentType: String, encoding: String?) -> String {
+        if isJSON(contentType: contentType),
+           let object = try? JSONSerialization.jsonObject(with: data),
+           let pretty = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted]),
+           let text = String(data: pretty, encoding: .utf8) {
+            return text
+        }
         if let text = String(data: data, encoding: .utf8) {
             return text
         }
+        if encoding == "base64" {
+            return data.base64EncodedString()
+        }
         return data.base64EncodedString()
+    }
+
+    private func isJSON(contentType: String) -> Bool {
+        contentType.localizedCaseInsensitiveContains("json")
+    }
+
+    private func renderImage(data: Data, contentType: String) -> NSImage? {
+        guard contentType.localizedCaseInsensitiveContains("image/") else {
+            return nil
+        }
+        return NSImage(data: data)
+    }
+
+    private func headerValue(_ headers: [String: String], key: String) -> String {
+        headers.first { $0.key.caseInsensitiveCompare(key) == .orderedSame }?.value ?? ""
     }
 
     private func pill(_ text: String, color: Color) -> some View {

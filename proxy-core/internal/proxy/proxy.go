@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -97,10 +98,12 @@ func (s *Server) forwardCapturedHTTP(w http.ResponseWriter, r *http.Request, sch
 	}
 
 	if s.config.CaptureBodies {
-		bodyBytes, restoredBody, size, err := cloneBody(r.Body, s.config.MaxBodyBytes)
+		bodyBytes, restoredBody, size, truncated, err := cloneBody(r.Body, s.config.MaxBodyBytes)
 		if err == nil {
 			item.RequestBody = bodyBytes
 			item.RequestSize = size
+			item.RequestBodyTruncated = truncated
+			item.RequestBodyEncoding = detectBodyEncoding(bodyBytes)
 			r.Body = restoredBody
 		} else {
 			item.Error = fmt.Sprintf("request body read error: %v", err)
@@ -133,7 +136,7 @@ func (s *Server) forwardCapturedHTTP(w http.ResponseWriter, r *http.Request, sch
 	}
 	defer resp.Body.Close()
 
-	respBody, respBodyReader, respSize, bodyErr := cloneBody(resp.Body, s.config.MaxBodyBytes)
+	respBody, respBodyReader, respSize, respTruncated, bodyErr := cloneBody(resp.Body, s.config.MaxBodyBytes)
 	if bodyErr != nil && item.Error == "" {
 		item.Error = fmt.Sprintf("response body read error: %v", bodyErr)
 	}
@@ -152,6 +155,8 @@ func (s *Server) forwardCapturedHTTP(w http.ResponseWriter, r *http.Request, sch
 	item.ResponseHeaders = flattenHeaders(resp.Header)
 	item.ResponseBody = respBody
 	item.ResponseSize = respSize
+	item.ResponseBodyTruncated = respTruncated
+	item.ResponseBodyEncoding = detectBodyEncoding(respBody)
 	item.ContentType = resp.Header.Get("Content-Type")
 	_ = s.store.Save(item)
 }
@@ -346,21 +351,22 @@ func (s *Server) respondConnectEstablished(clientConn net.Conn, item *session.Se
 	return nil
 }
 
-func cloneBody(rc io.ReadCloser, limit int64) ([]byte, io.ReadCloser, int64, error) {
+func cloneBody(rc io.ReadCloser, limit int64) ([]byte, io.ReadCloser, int64, bool, error) {
 	if rc == nil {
-		return nil, io.NopCloser(bytes.NewReader(nil)), 0, nil
+		return nil, io.NopCloser(bytes.NewReader(nil)), 0, false, nil
 	}
 	defer rc.Close()
 
 	limited := io.LimitReader(rc, limit+1)
 	data, err := io.ReadAll(limited)
 	if err != nil {
-		return nil, io.NopCloser(bytes.NewReader(nil)), 0, err
+		return nil, io.NopCloser(bytes.NewReader(nil)), 0, false, err
 	}
-	if int64(len(data)) > limit {
+	truncated := int64(len(data)) > limit
+	if truncated {
 		data = data[:limit]
 	}
-	return data, io.NopCloser(bytes.NewReader(data)), int64(len(data)), nil
+	return data, io.NopCloser(bytes.NewReader(data)), int64(len(data)), truncated, nil
 }
 
 func flattenHeaders(h http.Header) map[string]string {
@@ -582,4 +588,14 @@ func captureModeForHTTP(scheme string, tlsIntercepted bool) string {
 		return "https-request"
 	}
 	return "http-request"
+}
+
+func detectBodyEncoding(data []byte) string {
+	if len(data) == 0 {
+		return ""
+	}
+	if utf8.Valid(data) {
+		return "utf8"
+	}
+	return "base64"
 }

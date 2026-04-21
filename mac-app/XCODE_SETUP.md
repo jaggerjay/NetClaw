@@ -30,6 +30,7 @@ When the app opens:
 9. Use the built-in Setup Guide panel for proxy host/port and CA trust reminders
 10. Inspect CONNECT sessions in the detail view to verify capture mode and tunnel byte counts
 11. Use **Export HAR** to save the currently filtered request set as a HAR file
+12. Check body panes for JSON pretty-printing, image preview, and truncation hints during testing
 
 ### Option B: start it manually from Terminal
 

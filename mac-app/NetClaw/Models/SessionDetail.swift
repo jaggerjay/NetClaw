@@ -27,4 +27,8 @@ struct SessionDetail: Identifiable, Decodable {
     let tunnelBytesUp: Int64
     let tunnelBytesDown: Int64
     let tunnelTargetAddress: String?
+    let requestBodyTruncated: Bool
+    let responseBodyTruncated: Bool
+    let requestBodyEncoding: String?
+    let responseBodyEncoding: String?
 }

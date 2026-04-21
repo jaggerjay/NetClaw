@@ -72,7 +72,11 @@ func (s *SQLiteStore) init() error {
 			fallback_reason TEXT NOT NULL DEFAULT '',
 			tunnel_bytes_up INTEGER NOT NULL DEFAULT 0,
 			tunnel_bytes_down INTEGER NOT NULL DEFAULT 0,
-			tunnel_target_address TEXT NOT NULL DEFAULT ''
+			tunnel_target_address TEXT NOT NULL DEFAULT '',
+			request_body_truncated INTEGER NOT NULL DEFAULT 0,
+			response_body_truncated INTEGER NOT NULL DEFAULT 0,
+			request_body_encoding TEXT NOT NULL DEFAULT '',
+			response_body_encoding TEXT NOT NULL DEFAULT ''
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_start_time ON sessions(start_time DESC);`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_host ON sessions(host);`,
@@ -91,6 +95,10 @@ func (s *SQLiteStore) init() error {
 		`ALTER TABLE sessions ADD COLUMN tunnel_bytes_up INTEGER NOT NULL DEFAULT 0;`,
 		`ALTER TABLE sessions ADD COLUMN tunnel_bytes_down INTEGER NOT NULL DEFAULT 0;`,
 		`ALTER TABLE sessions ADD COLUMN tunnel_target_address TEXT NOT NULL DEFAULT '';`,
+		`ALTER TABLE sessions ADD COLUMN request_body_truncated INTEGER NOT NULL DEFAULT 0;`,
+		`ALTER TABLE sessions ADD COLUMN response_body_truncated INTEGER NOT NULL DEFAULT 0;`,
+		`ALTER TABLE sessions ADD COLUMN request_body_encoding TEXT NOT NULL DEFAULT '';`,
+		`ALTER TABLE sessions ADD COLUMN response_body_encoding TEXT NOT NULL DEFAULT '';`,
 	} {
 		if _, err := s.db.Exec(migration); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
 			return err
@@ -116,8 +124,9 @@ func (s *SQLiteStore) Save(item session.Session) error {
 			request_headers_json, response_headers_json,
 			request_body_base64, response_body_base64,
 			request_size, response_size, content_type, error_text, tls_intercepted,
-			capture_mode, fallback_reason, tunnel_bytes_up, tunnel_bytes_down, tunnel_target_address
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			capture_mode, fallback_reason, tunnel_bytes_up, tunnel_bytes_down, tunnel_target_address,
+			request_body_truncated, response_body_truncated, request_body_encoding, response_body_encoding
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			start_time=excluded.start_time,
 			end_time=excluded.end_time,
@@ -143,7 +152,11 @@ func (s *SQLiteStore) Save(item session.Session) error {
 			fallback_reason=excluded.fallback_reason,
 			tunnel_bytes_up=excluded.tunnel_bytes_up,
 			tunnel_bytes_down=excluded.tunnel_bytes_down,
-			tunnel_target_address=excluded.tunnel_target_address
+			tunnel_target_address=excluded.tunnel_target_address,
+			request_body_truncated=excluded.request_body_truncated,
+			response_body_truncated=excluded.response_body_truncated,
+			request_body_encoding=excluded.request_body_encoding,
+			response_body_encoding=excluded.response_body_encoding
 	`,
 		item.ID,
 		item.StartTime.UTC().Format(time.RFC3339Nano),
@@ -171,6 +184,10 @@ func (s *SQLiteStore) Save(item session.Session) error {
 		item.TunnelBytesUp,
 		item.TunnelBytesDown,
 		item.TunnelTargetAddress,
+		boolToInt(item.RequestBodyTruncated),
+		boolToInt(item.ResponseBodyTruncated),
+		item.RequestBodyEncoding,
+		item.ResponseBodyEncoding,
 	)
 	return err
 }
@@ -270,20 +287,23 @@ func (s *SQLiteStore) Get(id string) (*session.Session, error) {
 			request_headers_json, response_headers_json,
 			request_body_base64, response_body_base64,
 			request_size, response_size, content_type, error_text, tls_intercepted,
-			capture_mode, fallback_reason, tunnel_bytes_up, tunnel_bytes_down, tunnel_target_address
+			capture_mode, fallback_reason, tunnel_bytes_up, tunnel_bytes_down, tunnel_target_address,
+			request_body_truncated, response_body_truncated, request_body_encoding, response_body_encoding
 		FROM sessions
 		WHERE id = ?
 	`, id)
 
 	var (
-		item                session.Session
-		startTime           string
-		endTime             string
-		requestHeadersJSON  string
-		responseHeadersJSON string
-		requestBodyBase64   string
-		responseBodyBase64  string
-		tlsIntercepted      int
+		item                  session.Session
+		startTime             string
+		endTime               string
+		requestHeadersJSON    string
+		responseHeadersJSON   string
+		requestBodyBase64     string
+		responseBodyBase64    string
+		tlsIntercepted        int
+		requestBodyTruncated  int
+		responseBodyTruncated int
 	)
 
 	err := row.Scan(
@@ -313,6 +333,10 @@ func (s *SQLiteStore) Get(id string) (*session.Session, error) {
 		&item.TunnelBytesUp,
 		&item.TunnelBytesDown,
 		&item.TunnelTargetAddress,
+		&requestBodyTruncated,
+		&responseBodyTruncated,
+		&item.RequestBodyEncoding,
+		&item.ResponseBodyEncoding,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errors.New("session not found")
@@ -348,6 +372,8 @@ func (s *SQLiteStore) Get(id string) (*session.Session, error) {
 		}
 	}
 	item.TLSIntercepted = tlsIntercepted != 0
+	item.RequestBodyTruncated = requestBodyTruncated != 0
+	item.ResponseBodyTruncated = responseBodyTruncated != 0
 	return &item, nil
 }
 
