@@ -21,6 +21,7 @@ type ListOptions struct {
 type SessionStore interface {
 	Save(item session.Session) error
 	List(options ListOptions) ([]session.Summary, error)
+	ListFull(options ListOptions) ([]session.Session, error)
 	Get(id string) (*session.Session, error)
 	Clear() error
 }
@@ -99,6 +100,29 @@ func matchesListOptions(item session.Session, options ListOptions) bool {
 		}
 	}
 	return true
+}
+
+func (s *MemoryStore) ListFull(options ListOptions) ([]session.Session, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	result := make([]session.Session, 0, len(s.items))
+	for _, item := range s.items {
+		if !matchesListOptions(item, options) {
+			continue
+		}
+		result = append(result, item)
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].StartTime.After(result[j].StartTime)
+	})
+
+	if options.Limit > 0 && len(result) > options.Limit {
+		result = result[:options.Limit]
+	}
+
+	return result, nil
 }
 
 func (s *MemoryStore) Get(id string) (*session.Session, error) {

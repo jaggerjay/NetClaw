@@ -246,6 +246,23 @@ func (s *SQLiteStore) List(options ListOptions) ([]session.Summary, error) {
 	return filtered, nil
 }
 
+func (s *SQLiteStore) ListFull(options ListOptions) ([]session.Session, error) {
+	summaries, err := s.List(options)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]session.Session, 0, len(summaries))
+	for _, summary := range summaries {
+		item, err := s.Get(summary.ID)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, *item)
+	}
+	return items, nil
+}
+
 func (s *SQLiteStore) Get(id string) (*session.Session, error) {
 	row := s.db.QueryRow(`
 		SELECT id, start_time, end_time, scheme, method, host, port, path, url,

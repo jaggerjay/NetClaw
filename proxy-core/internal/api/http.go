@@ -8,6 +8,7 @@ import (
 
 	"netclaw/proxy-core/internal/cert"
 	"netclaw/proxy-core/internal/store"
+	"netclaw/proxy-core/pkg/har"
 )
 
 type RuntimeInfo struct {
@@ -34,6 +35,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/sessions/", s.getSession)
 	mux.HandleFunc("/api/certificate-authority", s.certificateAuthorityInfo)
 	mux.HandleFunc("/api/runtime-info", s.getRuntimeInfo)
+	mux.HandleFunc("/api/export/har", s.exportHAR)
 	return mux
 }
 
@@ -113,6 +115,20 @@ func (s *Server) certificateAuthorityInfo(w http.ResponseWriter, _ *http.Request
 
 func (s *Server) getRuntimeInfo(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, s.runtimeInfo)
+}
+
+func (s *Server) exportHAR(w http.ResponseWriter, r *http.Request) {
+	items, err := s.store.ListFull(parseListOptions(r))
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	doc := har.Export(items)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition", `attachment; filename="netclaw-export.har"`)
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(doc)
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

@@ -70,6 +70,53 @@ func TestListSessionsFilters(t *testing.T) {
 	}
 }
 
+func TestExportHAR(t *testing.T) {
+	t.Parallel()
+
+	st := store.NewMemoryStore()
+	seedSession(t, st, session.Session{
+		ID:              "har-1",
+		StartTime:       time.Now().UTC().Add(-1 * time.Minute),
+		EndTime:         time.Now().UTC(),
+		Scheme:          "https",
+		Method:          "GET",
+		Host:            "example.com",
+		Path:            "/hello",
+		URL:             "https://example.com/hello?x=1",
+		StatusCode:      200,
+		DurationMS:      12,
+		RequestHeaders:  map[string]string{"Accept": "*/*"},
+		ResponseHeaders: map[string]string{"Content-Type": "text/plain"},
+		ResponseBody:    []byte("hello"),
+		ResponseSize:    5,
+		ContentType:     "text/plain",
+	})
+
+	ts := httptest.NewServer(NewServer(st, nil, RuntimeInfo{}).Handler())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/export/har")
+	if err != nil {
+		t.Fatalf("GET /api/export/har error = %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+	if got := resp.Header.Get("Content-Disposition"); got == "" {
+		t.Fatalf("missing Content-Disposition header")
+	}
+
+	var doc map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&doc); err != nil {
+		t.Fatalf("decode error = %v", err)
+	}
+	if _, ok := doc["log"]; !ok {
+		t.Fatalf("missing har log key")
+	}
+}
+
 func TestRuntimeInfo(t *testing.T) {
 	t.Parallel()
 
