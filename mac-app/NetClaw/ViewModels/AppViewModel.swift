@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import AppKit
 
 @MainActor
 final class AppViewModel: ObservableObject {
@@ -23,6 +24,7 @@ final class AppViewModel: ObservableObject {
     @Published var proxyValidationText: String = ""
     @Published var proxyLogText: String = ""
     @Published var isProxyRunning: Bool = false
+    @Published var isExportingHAR: Bool = false
     @Published var lastErrorText: String?
 
     static let apiBaseURLKey = "netclaw.apiBaseURL"
@@ -100,6 +102,30 @@ final class AppViewModel: ObservableObject {
 
     func quickHealthCheck() async {
         await refresh()
+    }
+
+    func exportHAR() async {
+        isExportingHAR = true
+        defer { isExportingHAR = false }
+
+        do {
+            let data = try await apiClient.downloadHAR(query: currentQuery)
+            let panel = NSSavePanel()
+            panel.canCreateDirectories = true
+            panel.nameFieldStringValue = suggestedHARFilename()
+            panel.title = "Export HAR"
+            panel.message = "Save captured sessions as a HAR file"
+            panel.allowedContentTypes = []
+
+            guard panel.runModal() == .OK, let url = panel.url else {
+                return
+            }
+
+            try data.write(to: url)
+            lastErrorText = nil
+        } catch {
+            lastErrorText = "HAR export failed: \(error.localizedDescription)"
+        }
     }
 
     func validateProxyLaunchSettings() {
@@ -240,6 +266,18 @@ final class AppViewModel: ObservableObject {
     private func persistLaunchSettings() {
         defaults.set(proxyWorkingDirectoryText, forKey: Self.proxyWorkingDirectoryKey)
         defaults.set(proxyCommandText, forKey: Self.proxyCommandKey)
+    }
+
+    private func suggestedHARFilename() -> String {
+        var parts = ["netclaw"]
+        if !hostFilter.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            parts.append(hostFilter.replacingOccurrences(of: " ", with: "-"))
+        }
+        if !methodFilter.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            parts.append(methodFilter.lowercased())
+        }
+        parts.append("export.har")
+        return parts.joined(separator: "-")
     }
 
     private var currentQuery: SessionQuery {

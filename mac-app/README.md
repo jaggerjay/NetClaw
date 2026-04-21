@@ -13,6 +13,7 @@ SwiftUI-based macOS test shell for the NetClaw proxy core.
 - inline proxy logs
 - quick API health check and clearer error display
 - setup guide for macOS proxy configuration and CA trust
+- HAR export from the macOS test shell using current filters
 - configurable local API base URL
 - connection health indicator
 - auto-refreshing session list

@@ -5,12 +5,14 @@ struct ConnectionStatusView: View {
     let statusText: String
     let isConnected: Bool
     let isRefreshing: Bool
+    let isExportingHAR: Bool
     let autoRefreshEnabled: Bool
     let authorityInfo: CertificateAuthorityInfo?
     let lastErrorText: String?
     let onRefresh: () -> Void
     let onQuickCheck: () -> Void
     let onApplyBaseURL: () -> Void
+    let onExportHAR: () -> Void
     let onToggleAutoRefresh: (Bool) -> Void
 
     var body: some View {
@@ -31,9 +33,6 @@ struct ConnectionStatusView: View {
                 Button("Apply") {
                     onApplyBaseURL()
                 }
-                Button("Apply") {
-                    onApplyBaseURL()
-                }
                 Button("Refresh") {
                     onRefresh()
                 }
@@ -41,6 +40,10 @@ struct ConnectionStatusView: View {
                 Button("Quick Check") {
                     onQuickCheck()
                 }
+                Button(isExportingHAR ? "Exporting…" : "Export HAR") {
+                    onExportHAR()
+                }
+                .disabled(isExportingHAR)
             }
 
             Toggle("Auto refresh every 2 seconds", isOn: Binding(

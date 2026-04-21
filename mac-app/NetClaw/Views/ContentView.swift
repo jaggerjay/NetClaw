@@ -30,12 +30,14 @@ struct ContentView: View {
                             statusText: viewModel.statusText,
                             isConnected: viewModel.isConnected,
                             isRefreshing: viewModel.isRefreshing,
+                            isExportingHAR: viewModel.isExportingHAR,
                             autoRefreshEnabled: viewModel.autoRefreshEnabled,
                             authorityInfo: viewModel.authorityInfo,
                             lastErrorText: viewModel.lastErrorText,
                             onRefresh: { Task { await viewModel.refresh() } },
                             onQuickCheck: { Task { await viewModel.quickHealthCheck() } },
                             onApplyBaseURL: { Task { await viewModel.applyAPIBaseURL() } },
+                            onExportHAR: { Task { await viewModel.exportHAR() } },
                             onToggleAutoRefresh: { value in viewModel.setAutoRefreshEnabled(value) }
                         )
 

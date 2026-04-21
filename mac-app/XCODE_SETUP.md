@@ -29,6 +29,7 @@ When the app opens:
 8. The app will remember your recent launch settings
 9. Use the built-in Setup Guide panel for proxy host/port and CA trust reminders
 10. Inspect CONNECT sessions in the detail view to verify capture mode and tunnel byte counts
+11. Use **Export HAR** to save the currently filtered request set as a HAR file
 
 ### Option B: start it manually from Terminal
 
