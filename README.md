@@ -36,3 +36,23 @@ This workspace currently contains a first-pass project skeleton and design docs,
 - the macOS app previews large bodies with a truncated view first, with an option to show the full content
 
 The Go and Swift toolchains were not available in the current environment, so the code is provided as a scaffold and should be built on a macOS development machine with Go and Xcode installed.
+
+## Go module download note
+
+On a fresh machine, the first `go run` or `go build` may spend time downloading dependencies such as `modernc.org/sqlite`.
+
+If module download times out, it is usually a Go proxy / network issue rather than a NetClaw bug. In that case, try setting `GOPROXY` and downloading modules first:
+
+```bash
+cd proxy-core
+go env -w GOPROXY=https://goproxy.cn,direct
+go mod download
+```
+
+Then run NetClaw again.
+
+If your network works better with the default Go proxy, you can instead use:
+
+```bash
+go env -w GOPROXY=https://proxy.golang.org,direct
+```

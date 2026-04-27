@@ -18,6 +18,17 @@ Expected startup logs include:
 - root CA certificate path
 - session database path
 
+### If dependency download times out
+
+On a fresh machine, `go run` may first download Go modules such as `modernc.org/sqlite`. If that step times out, configure a reachable Go proxy and retry:
+
+```bash
+go env -w GOPROXY=https://goproxy.cn,direct
+go mod download
+```
+
+Then start the proxy core again.
+
 ## 2. Send HTTP traffic through the proxy
 
 ```bash

@@ -43,6 +43,18 @@ cd proxy-core
 go run ./cmd/netclaw-proxy -proxy-listen 127.0.0.1:9090 -api-listen 127.0.0.1:9091 -data-dir .netclaw-data/dev
 ```
 
+### If Go dependency download times out
+
+If `go run` stalls or times out while downloading dependencies such as `modernc.org/sqlite`, configure a working Go proxy first:
+
+```bash
+cd proxy-core
+go env -w GOPROXY=https://goproxy.cn,direct
+go mod download
+```
+
+After that, retry `go run` or the in-app Start Proxy flow.
+
 ## Launch the app
 
 When the app opens:
