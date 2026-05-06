@@ -13,7 +13,7 @@
 		A00000000000000000000004 /* CertificateAuthorityInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000104 /* CertificateAuthorityInfo.swift */; };
 		A00000000000000000000005 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000105 /* APIClient.swift */; };
 		A0000000000000000000000F /* RuntimeInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010E /* RuntimeInfo.swift */; };
-		A00000000000000000000010 /* SetupGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010F /* SetupGuideView.swift */; };
+		A00000000000000000000011 /* SetupGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010F /* SetupGuideView.swift */; };
 		A00000000000000000000006 /* AppViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000106 /* AppViewModel.swift */; };
 		A00000000000000000000007 /* ConnectionStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000107 /* ConnectionStatusView.swift */; };
 		A00000000000000000000008 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000108 /* ContentView.swift */; };
@@ -208,7 +208,7 @@
 				A00000000000000000000009 /* SessionDetailView.swift in Sources */,
 				A0000000000000000000000A /* SessionListView.swift in Sources */,
 				A0000000000000000000000B /* WelcomeDetailView.swift in Sources */,
-				A00000000000000000000010 /* SetupGuideView.swift in Sources */,
+				A00000000000000000000011 /* SetupGuideView.swift in Sources */,
 				A0000000000000000000000D /* ProxyProcessController.swift in Sources */,
 				A0000000000000000000000E /* ProxyRuntimeView.swift in Sources */,
 			);
