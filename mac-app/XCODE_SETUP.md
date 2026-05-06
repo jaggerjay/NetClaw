@@ -55,6 +55,20 @@ go mod download
 
 After that, retry `go run` or the in-app Start Proxy flow.
 
+### If the app says Go is not in PATH
+
+Xcode-launched apps sometimes get a narrower PATH than your Terminal shell. If the app reports that Go is missing even though `go version` works in Terminal, first confirm Go is installed in one of the common locations below:
+
+- `/opt/homebrew/bin/go`
+- `/usr/local/bin/go`
+- `/usr/local/go/bin/go`
+
+If needed, launch Xcode from Terminal so it inherits your shell environment:
+
+```bash
+open -a Xcode
+```
+
 ## Launch the app
 
 When the app opens:

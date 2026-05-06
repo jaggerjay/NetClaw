@@ -34,15 +34,19 @@ final class ProxyProcessController {
         }
 
         if trimmedCommand.contains("go ") || trimmedCommand.hasPrefix("go") {
+            guard let goExecutable = resolveGoExecutable() else {
+                return .init(success: false, message: "Go toolchain not found. If Go works in Terminal but not here, Xcode-launched apps may have a narrower PATH. Try installing Go in /opt/homebrew/bin or /usr/local/go/bin, or launch Xcode from a shell that has Go in PATH.")
+            }
+
             let goCheck = Process()
-            goCheck.executableURL = URL(fileURLWithPath: "/bin/bash")
-            goCheck.arguments = ["-lc", "command -v go >/dev/null 2>&1"]
+            goCheck.executableURL = goExecutable
+            goCheck.arguments = ["version"]
             goCheck.currentDirectoryURL = URL(fileURLWithPath: trimmedDirectory, isDirectory: true)
             do {
                 try goCheck.run()
                 goCheck.waitUntilExit()
                 if goCheck.terminationStatus != 0 {
-                    return .init(success: false, message: "Go toolchain not found in PATH for this app")
+                    return .init(success: false, message: "Found Go executable but it failed to run")
                 }
             } catch {
                 return .init(success: false, message: "Unable to validate Go toolchain: \(error.localizedDescription)")
@@ -68,6 +72,7 @@ final class ProxyProcessController {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/bin/bash")
         proc.arguments = ["-lc", trimmedCommand]
+        proc.environment = buildProcessEnvironment()
 
         if let trimmedWorkingDirectory, !trimmedWorkingDirectory.isEmpty {
             proc.currentDirectoryURL = URL(fileURLWithPath: trimmedWorkingDirectory, isDirectory: true)
@@ -117,6 +122,37 @@ final class ProxyProcessController {
             process.terminate()
             onStateChange?(false, "Stopping proxy process…")
         }
+    }
+
+    private func resolveGoExecutable() -> URL? {
+        let fileManager = FileManager.default
+        let envPath = buildProcessEnvironment()["PATH"] ?? ""
+        let searchPaths = envPath.split(separator: ":").map(String.init)
+        let candidates = searchPaths + [
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "/usr/local/go/bin",
+            NSHomeDirectory() + "/go/bin",
+        ]
+
+        for directory in candidates {
+            let path = (directory as NSString).appendingPathComponent("go")
+            if fileManager.isExecutableFile(atPath: path) {
+                return URL(fileURLWithPath: path)
+            }
+        }
+        return nil
+    }
+
+    private func buildProcessEnvironment() -> [String: String] {
+        var environment = ProcessInfo.processInfo.environment
+        let defaultPath = "/opt/homebrew/bin:/usr/local/bin:/usr/local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+        if let existing = environment["PATH"], !existing.isEmpty {
+            environment["PATH"] = existing + ":" + defaultPath
+        } else {
+            environment["PATH"] = defaultPath
+        }
+        return environment
     }
 }
 
