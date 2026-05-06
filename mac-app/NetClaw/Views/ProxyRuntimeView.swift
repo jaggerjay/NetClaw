@@ -23,6 +23,17 @@ struct ProxyRuntimeView: View {
                 Label(proxyStatusText, systemImage: isProxyRunning ? "bolt.fill" : "bolt.slash")
                     .foregroundStyle(isProxyRunning ? .green : .secondary)
                 Spacer()
+                Button("Start Proxy") {
+                    onStart()
+                }
+                .disabled(isProxyRunning)
+                Button("Stop") {
+                    onStop()
+                }
+                .disabled(!isProxyRunning)
+            }
+
+            HStack {
                 Button("Repo Hint") {
                     onUseRepoRootSuggestion()
                 }
@@ -35,15 +46,9 @@ struct ProxyRuntimeView: View {
                 Button("Validate") {
                     onValidate()
                 }
-                Button("Start Proxy") {
-                    onStart()
-                }
-                .disabled(isProxyRunning)
-                Button("Stop") {
-                    onStop()
-                }
-                .disabled(!isProxyRunning)
+                Spacer()
             }
+            .controlSize(.small)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Working Directory")
