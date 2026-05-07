@@ -1,6 +1,5 @@
 import Foundation
 import SwiftUI
-import AppKit
 
 @MainActor
 final class AppViewModel: ObservableObject {
@@ -104,19 +103,17 @@ final class AppViewModel: ObservableObject {
         await refresh()
     }
 
-    func exportHAR() async {
+    func exportHARData() async throws -> Data {
         isExportingHAR = true
         defer { isExportingHAR = false }
+        return try await apiClient.downloadHAR(query: currentQuery)
+    }
 
-        do {
-            let data = try await apiClient.downloadHAR(query: currentQuery)
-            guard let url = await presentHARSavePanel() else {
-                return
-            }
-
-            try data.write(to: url)
+    func recordHARExportResult(_ result: Result<URL, Error>) {
+        switch result {
+        case .success:
             lastErrorText = nil
-        } catch {
+        case .failure(let error):
             lastErrorText = "HAR export failed: \(error.localizedDescription)"
         }
     }
@@ -261,7 +258,7 @@ final class AppViewModel: ObservableObject {
         defaults.set(proxyCommandText, forKey: Self.proxyCommandKey)
     }
 
-    private func suggestedHARFilename() -> String {
+    func suggestedHARFilename() -> String {
         var parts = ["netclaw"]
         if !hostFilter.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             parts.append(hostFilter.replacingOccurrences(of: " ", with: "-"))
@@ -271,20 +268,6 @@ final class AppViewModel: ObservableObject {
         }
         parts.append("export.har")
         return parts.joined(separator: "-")
-    }
-
-    private func presentHARSavePanel() async -> URL? {
-        await withCheckedContinuation { continuation in
-            let panel = NSSavePanel()
-            panel.canCreateDirectories = true
-            panel.nameFieldStringValue = suggestedHARFilename()
-            panel.title = "Export HAR"
-            panel.message = "Save captured sessions as a HAR file"
-            panel.allowedContentTypes = []
-            panel.begin { response in
-                continuation.resume(returning: response == .OK ? panel.url : nil)
-            }
-        }
     }
 
     private var currentQuery: SessionQuery {
