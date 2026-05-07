@@ -120,7 +120,11 @@ struct SessionDetailView: View {
                 Text(prettyHeaders(headers).isEmpty ? "No headers" : prettyHeaders(headers))
                     .font(.system(.body, design: .monospaced))
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
+                    .padding(10)
+                    .background(Color.secondary.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
             }
         }
     }
@@ -169,12 +173,14 @@ struct SessionDetailView: View {
                                 .foregroundStyle(.secondary)
                         }
 
-                        ScrollView(.horizontal) {
-                            Text(previewText)
-                                .font(.system(.body, design: .monospaced))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .textSelection(.enabled)
-                        }
+                        Text(previewText)
+                            .font(.system(.body, design: .monospaced))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .textSelection(.enabled)
+                            .padding(10)
+                            .background(Color.secondary.opacity(0.08))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
 
                         if canExpand {
                             HStack {
