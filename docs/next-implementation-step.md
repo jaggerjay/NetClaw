@@ -1,21 +1,25 @@
 # Immediate Next Implementation Step
 
-NetClaw now has a first-pass MITM CONNECT scaffold. The next coding milestone should be:
+NetClaw has now been manually verified on macOS for the main path:
+- app builds and runs
+- proxy-core starts
+- HTTP capture works
+- HTTPS MITM works
+- HAR export works
 
-## Step 1: validate and harden the MITM request/response path
-- compile and fix any type/runtime issues
-- ensure intercepted responses are serialized correctly
-- verify keep-alive behavior and body framing
-- test with plain HTTP/1.1 sites through the HTTPS proxy path
+The next coding milestone should focus on polish rather than first-pass scaffolding.
 
-## Step 2: establish real upstream TLS policy
-- validate current upstream TLS config and runtime behavior
-- verify SNI behavior against real targets
-- improve certificate validation UX and error surfacing
-- improve fallback from MITM to passthrough when needed (beyond current static rules + temporary failure cache)
+## Step 1: clean up remaining UI rough edges
+- improve response body preview behavior for very large bodies
+- improve list-row status/capture indicators
+- tighten export UX now that HAR export is functional
 
-## Step 3: improve captured session fidelity
-- record byte counts for CONNECT tunnels
-- distinguish tunnel errors vs target server errors
-- persist sessions to SQLite
-- add filter/search API
+## Step 2: improve reproduction/debug workflows
+- add curl export for individual sessions
+- improve copy/share actions for captured requests
+- make it easier to move from captured traffic to reproduction commands
+
+## Step 3: reduce setup friction on macOS
+- bundle proxy-core into the app
+- reduce dependence on a local Go environment for normal testing
+- improve guidance or automation for proxy and CA setup

@@ -18,15 +18,17 @@ NetClaw is a V1 macOS proxy capture tool inspired by Fiddler/Charles/Proxyman.
 
 ## Current state
 
-This workspace currently contains a first-pass project skeleton and design docs, including:
-- HTTP proxy capture scaffold
-- HTTPS CONNECT passthrough scaffold
-- local CA / leaf certificate generation scaffold
-- MITM request/response and fallback scaffolds
-- upstream TLS transport/error-handling scaffold
+This workspace has moved past the initial scaffold phase and now includes a working macOS development test build with:
+- HTTP proxy capture
+- HTTPS CONNECT handling
+- HTTPS MITM via a locally generated root CA
 - SQLite-backed session persistence
-- local sessions API with basic filtering (`q`, `host`, `method`, `has_error`, `tls_intercepted`, `limit`)
-- SwiftUI viewer shell with basic filter controls
+- local sessions API with filtering/search and HAR export
+- checked-in Xcode project for the macOS test shell
+- app-driven proxy startup and session inspection
+- HAR export from the macOS app
+
+See `docs/validated-status.md` for the current manually verified status on macOS.
 
 ## Body capture note
 
