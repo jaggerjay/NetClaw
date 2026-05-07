@@ -1,11 +1,14 @@
 import SwiftUI
 import AppKit
+import Foundation
 
 struct SessionDetailView: View {
     let session: SessionDetail?
 
     @State private var expandedBodySections: Set<String> = []
-    private let previewCharacterLimit = 4000
+    private let previewCharacterLimit = 8000
+    private let bodyViewportHeight: CGFloat = 280
+    private let expandedBodyViewportHeight: CGFloat = 520
 
     var body: some View {
         Group {
@@ -22,6 +25,7 @@ struct SessionDetailView: View {
                             title: "Request Body",
                             data: session.requestBody,
                             contentType: headerValue(session.requestHeaders, key: "Content-Type"),
+                            contentEncoding: headerValue(session.requestHeaders, key: "Content-Encoding"),
                             encoding: session.requestBodyEncoding,
                             truncated: session.requestBodyTruncated,
                             emptyText: "No captured request body"
@@ -31,6 +35,7 @@ struct SessionDetailView: View {
                             title: "Response Body",
                             data: session.responseBody,
                             contentType: session.contentType,
+                            contentEncoding: headerValue(session.responseHeaders, key: "Content-Encoding"),
                             encoding: session.responseBodyEncoding,
                             truncated: session.responseBodyTruncated,
                             emptyText: "No captured response body"
@@ -130,19 +135,23 @@ struct SessionDetailView: View {
     }
 
     @ViewBuilder
-    private func bodySection(title: String, data: Data?, contentType: String, encoding: String?, truncated: Bool, emptyText: String) -> some View {
+    private func bodySection(title: String, data: Data?, contentType: String, contentEncoding: String?, encoding: String?, truncated: Bool, emptyText: String) -> some View {
         GroupBox(title) {
             if let data, !data.isEmpty {
-                let renderedBody = renderBody(data, contentType: contentType, encoding: encoding)
+                let renderedBody = renderBody(data, contentType: contentType, contentEncoding: contentEncoding, encoding: encoding)
                 let sectionID = title.lowercased().replacingOccurrences(of: " ", with: "-")
                 let isExpanded = expandedBodySections.contains(sectionID)
                 let previewText = previewBodyText(renderedBody, expanded: isExpanded)
                 let canExpand = renderedBody.count > previewCharacterLimit
+                let viewportHeight = isExpanded ? expandedBodyViewportHeight : bodyViewportHeight
 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
                         if !contentType.isEmpty {
                             pill(contentType, color: .secondary)
+                        }
+                        if let contentEncoding, !contentEncoding.isEmpty {
+                            pill(contentEncoding.uppercased(), color: .secondary)
                         }
                         if let encoding, !encoding.isEmpty {
                             pill(encoding.uppercased(), color: .secondary)
@@ -154,6 +163,13 @@ struct SessionDetailView: View {
                             pill(isExpanded ? "FULL" : "PREVIEW", color: .secondary)
                         }
                         Spacer()
+                        if canExpand {
+                            Button(isExpanded ? "Show Less" : "Show All") {
+                                toggleBodyExpansion(sectionID)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                        }
                         Button("Copy") {
                             copyToPasteboard(renderedBody)
                         }
@@ -164,7 +180,7 @@ struct SessionDetailView: View {
                         Image(nsImage: image)
                             .resizable()
                             .scaledToFit()
-                            .frame(maxHeight: 260)
+                            .frame(maxHeight: 360)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     } else {
                         if canExpand && !isExpanded {
@@ -173,25 +189,16 @@ struct SessionDetailView: View {
                                 .foregroundStyle(.secondary)
                         }
 
-                        Text(previewText)
-                            .font(.system(.body, design: .monospaced))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .textSelection(.enabled)
-                            .padding(10)
-                            .background(Color.secondary.opacity(0.08))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                        if canExpand {
-                            HStack {
-                                Button(isExpanded ? "Show Less" : "Show All") {
-                                    toggleBodyExpansion(sectionID)
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.small)
-                                Spacer()
-                            }
+                        ScrollView([.vertical, .horizontal]) {
+                            Text(previewText)
+                                .font(.system(.body, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                                .padding(10)
                         }
+                        .frame(minHeight: viewportHeight, maxHeight: viewportHeight)
+                        .background(Color.secondary.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                 }
             } else {
@@ -219,12 +226,12 @@ struct SessionDetailView: View {
             }
             if let requestBody = session.requestBody, !requestBody.isEmpty {
                 actionButton("Copy Req Body") {
-                    copyToPasteboard(renderBody(requestBody, contentType: headerValue(session.requestHeaders, key: "Content-Type"), encoding: session.requestBodyEncoding))
+                    copyToPasteboard(renderBody(requestBody, contentType: headerValue(session.requestHeaders, key: "Content-Type"), contentEncoding: headerValue(session.requestHeaders, key: "Content-Encoding"), encoding: session.requestBodyEncoding))
                 }
             }
             if let responseBody = session.responseBody, !responseBody.isEmpty {
                 actionButton("Copy Res Body") {
-                    copyToPasteboard(renderBody(responseBody, contentType: session.contentType, encoding: session.responseBodyEncoding))
+                    copyToPasteboard(renderBody(responseBody, contentType: session.contentType, contentEncoding: headerValue(session.responseHeaders, key: "Content-Encoding"), encoding: session.responseBodyEncoding))
                 }
             }
         }
@@ -250,28 +257,30 @@ struct SessionDetailView: View {
         headers.keys.sorted().map { "\($0): \(headers[$0] ?? "")" }.joined(separator: "\n")
     }
 
-    private func renderBody(_ data: Data, contentType: String, encoding: String?) -> String {
+    private func renderBody(_ data: Data, contentType: String, contentEncoding: String?, encoding: String?) -> String {
+        let decodedData = decodeBodyIfNeeded(data, contentEncoding: contentEncoding)
+
         if isJSON(contentType: contentType),
-           let object = try? JSONSerialization.jsonObject(with: data),
+           let object = try? JSONSerialization.jsonObject(with: decodedData),
            let pretty = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]),
            let text = String(data: pretty, encoding: .utf8) {
             return text
         }
         if isFormURLEncoded(contentType: contentType),
-           let text = String(data: data, encoding: .utf8) {
+           let text = String(data: decodedData, encoding: .utf8) {
             return prettyFormURLEncoded(text)
         }
         if isXML(contentType: contentType),
-           let prettyXML = prettyXMLString(data: data) {
+           let prettyXML = prettyXMLString(data: decodedData) {
             return prettyXML
         }
-        if let text = String(data: data, encoding: .utf8) {
+        if let text = String(data: decodedData, encoding: .utf8) {
             return text
         }
         if encoding == "base64" {
             return data.base64EncodedString()
         }
-        return data.base64EncodedString()
+        return decodedData.base64EncodedString()
     }
 
     private func isJSON(contentType: String) -> Bool {
@@ -285,6 +294,20 @@ struct SessionDetailView: View {
     private func isXML(contentType: String) -> Bool {
         let lowered = contentType.lowercased()
         return lowered.contains("xml") || lowered.contains("+xml")
+    }
+
+    private func decodeBodyIfNeeded(_ data: Data, contentEncoding: String?) -> Data {
+        guard let contentEncoding else { return data }
+        let normalized = contentEncoding.lowercased()
+
+        if normalized.contains("gzip") || normalized.contains("deflate") {
+            if let decompressed = try? (data as NSData).decompressed(using: .zlib) as Data,
+               !decompressed.isEmpty {
+                return decompressed
+            }
+        }
+
+        return data
     }
 
     private func prettyFormURLEncoded(_ text: String) -> String {
@@ -337,7 +360,7 @@ struct SessionDetailView: View {
 
         if let body = session.requestBody, !body.isEmpty {
             parts.append("--data-binary")
-            parts.append(shellEscape(renderBody(body, contentType: headerValue(session.requestHeaders, key: "Content-Type"), encoding: session.requestBodyEncoding)))
+            parts.append(shellEscape(renderBody(body, contentType: headerValue(session.requestHeaders, key: "Content-Type"), contentEncoding: headerValue(session.requestHeaders, key: "Content-Encoding"), encoding: session.requestBodyEncoding)))
         }
 
         parts.append(shellEscape(session.url))
