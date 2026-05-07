@@ -2,8 +2,6 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var viewModel = AppViewModel()
-    @State private var harDocument: HARExportDocument?
-    @State private var isExportingHARFile: Bool = false
 
     var body: some View {
         NavigationSplitView {
@@ -39,17 +37,7 @@ struct ContentView: View {
                             onRefresh: { Task { await viewModel.refresh() } },
                             onQuickCheck: { Task { await viewModel.quickHealthCheck() } },
                             onApplyBaseURL: { Task { await viewModel.applyAPIBaseURL() } },
-                            onExportHAR: {
-                                Task {
-                                    do {
-                                        let data = try await viewModel.exportHARData()
-                                        harDocument = HARExportDocument(data: data)
-                                        isExportingHARFile = true
-                                    } catch {
-                                        viewModel.recordHARExportResult(.failure(error))
-                                    }
-                                }
-                            },
+                            onExportHAR: { Task { await viewModel.exportHAR() } },
                             onToggleAutoRefresh: { value in viewModel.setAutoRefreshEnabled(value) }
                         )
 
@@ -111,15 +99,6 @@ struct ContentView: View {
         }
         .onSubmit {
             Task { await viewModel.refresh() }
-        }
-        .fileExporter(
-            isPresented: $isExportingHARFile,
-            document: harDocument,
-            contentType: .data,
-            defaultFilename: viewModel.suggestedHARFilename()
-        ) { result in
-            viewModel.recordHARExportResult(result)
-            harDocument = nil
         }
         .safeAreaInset(edge: .bottom) {
             HStack {

@@ -29,8 +29,8 @@ When the app opens:
 8. The app will remember your recent launch settings
 9. Use the built-in Setup Guide panel for proxy host/port and CA trust reminders
 10. Inspect CONNECT sessions in the detail view to verify capture mode and tunnel byte counts
-11. Use **Export HAR** to save the currently filtered request set as a HAR file
-   - the app now uses SwiftUI's file exporter so the save flow should remain responsive
+11. Use **Export HAR** to write the currently filtered request set to your Downloads folder
+   - after export, the app should reveal the HAR file in Finder instead of opening a save dialog
 12. Check body panes for JSON, XML, and form-urlencoded formatting, plus image preview and truncation hints during testing
 13. Large bodies now open in preview mode first; use Show All when you need the full captured content
 14. Use the detail view copy actions to grab URL, headers, bodies, or a curl reproduction command

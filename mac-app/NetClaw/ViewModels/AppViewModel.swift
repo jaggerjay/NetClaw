@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import AppKit
 
 @MainActor
 final class AppViewModel: ObservableObject {
@@ -103,17 +104,17 @@ final class AppViewModel: ObservableObject {
         await refresh()
     }
 
-    func exportHARData() async throws -> Data {
+    func exportHAR() async {
         isExportingHAR = true
         defer { isExportingHAR = false }
-        return try await apiClient.downloadHAR(query: currentQuery)
-    }
 
-    func recordHARExportResult(_ result: Result<URL, Error>) {
-        switch result {
-        case .success:
+        do {
+            let data = try await apiClient.downloadHAR(query: currentQuery)
+            let url = try nextHARExportURL()
+            try data.write(to: url)
+            NSWorkspace.shared.activateFileViewerSelecting([url])
             lastErrorText = nil
-        case .failure(let error):
+        } catch {
             lastErrorText = "HAR export failed: \(error.localizedDescription)"
         }
     }
@@ -268,6 +269,23 @@ final class AppViewModel: ObservableObject {
         }
         parts.append("export.har")
         return parts.joined(separator: "-")
+    }
+
+    private func nextHARExportURL() throws -> URL {
+        let fileManager = FileManager.default
+        let baseDirectory = fileManager.urls(for: .downloadsDirectory, in: .userDomainMask).first
+            ?? fileManager.homeDirectoryForCurrentUser
+
+        let baseName = suggestedHARFilename().replacingOccurrences(of: ".har", with: "")
+        var candidate = baseDirectory.appendingPathComponent(baseName).appendingPathExtension("har")
+        var counter = 1
+
+        while fileManager.fileExists(atPath: candidate.path) {
+            candidate = baseDirectory.appendingPathComponent("\(baseName)-\(counter)").appendingPathExtension("har")
+            counter += 1
+        }
+
+        return candidate
     }
 
     private var currentQuery: SessionQuery {

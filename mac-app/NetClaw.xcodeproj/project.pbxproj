@@ -10,7 +10,6 @@
 		A00000000000000000000001 /* NetClawApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000101 /* NetClawApp.swift */; };
 		A00000000000000000000002 /* SessionDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000102 /* SessionDetail.swift */; };
 		A00000000000000000000003 /* SessionSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000103 /* SessionSummary.swift */; };
-		A00000000000000000000012 /* HARExportDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000110 /* HARExportDocument.swift */; };
 		A00000000000000000000004 /* CertificateAuthorityInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000104 /* CertificateAuthorityInfo.swift */; };
 		A00000000000000000000005 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000105 /* APIClient.swift */; };
 		A0000000000000000000000F /* RuntimeInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010E /* RuntimeInfo.swift */; };
@@ -30,7 +29,6 @@
 		A00000000000000000000101 /* NetClawApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetClawApp.swift; sourceTree = "<group>"; };
 		A00000000000000000000102 /* SessionDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDetail.swift; sourceTree = "<group>"; };
 		A00000000000000000000103 /* SessionSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSummary.swift; sourceTree = "<group>"; };
-		A00000000000000000000110 /* HARExportDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HARExportDocument.swift; sourceTree = "<group>"; };
 		A00000000000000000000104 /* CertificateAuthorityInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CertificateAuthorityInfo.swift; sourceTree = "<group>"; };
 		A00000000000000000000105 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		A0000000000000000000010E /* RuntimeInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeInfo.swift; sourceTree = "<group>"; };
@@ -83,7 +81,6 @@
 			isa = PBXGroup;
 			children = (
 				A00000000000000000000104 /* CertificateAuthorityInfo.swift */,
-				A00000000000000000000110 /* HARExportDocument.swift */,
 				A0000000000000000000010E /* RuntimeInfo.swift */,
 				A00000000000000000000102 /* SessionDetail.swift */,
 				A00000000000000000000103 /* SessionSummary.swift */,
@@ -202,7 +199,6 @@
 				A00000000000000000000001 /* NetClawApp.swift in Sources */,
 				A00000000000000000000002 /* SessionDetail.swift in Sources */,
 				A00000000000000000000003 /* SessionSummary.swift in Sources */,
-				A00000000000000000000012 /* HARExportDocument.swift in Sources */,
 				A00000000000000000000004 /* CertificateAuthorityInfo.swift in Sources */,
 				A00000000000000000000005 /* APIClient.swift in Sources */,
 				A0000000000000000000000F /* RuntimeInfo.swift in Sources */,
