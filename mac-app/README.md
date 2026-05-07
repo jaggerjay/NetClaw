@@ -15,6 +15,7 @@ SwiftUI-based macOS test shell for the NetClaw proxy core.
 - quick API health check and clearer error display
 - setup guide for macOS proxy configuration and CA trust
 - HAR export from the macOS test shell using current filters
+- asynchronous save-panel based export flow to avoid blocking the UI during HAR export
 - richer body rendering with JSON, XML, form-urlencoded formatting, image preview, and truncation hints
 - preview-first body display with Show All / Show Less for large content
 - one-click copy actions for URL, headers, bodies, and curl reproduction commands

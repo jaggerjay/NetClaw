@@ -30,6 +30,7 @@ When the app opens:
 9. Use the built-in Setup Guide panel for proxy host/port and CA trust reminders
 10. Inspect CONNECT sessions in the detail view to verify capture mode and tunnel byte counts
 11. Use **Export HAR** to save the currently filtered request set as a HAR file
+   - the save panel is asynchronous, so the app should remain responsive while it is open
 12. Check body panes for JSON, XML, and form-urlencoded formatting, plus image preview and truncation hints during testing
 13. Large bodies now open in preview mode first; use Show All when you need the full captured content
 14. Use the detail view copy actions to grab URL, headers, bodies, or a curl reproduction command

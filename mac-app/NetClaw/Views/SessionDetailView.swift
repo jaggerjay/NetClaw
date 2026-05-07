@@ -163,16 +163,28 @@ struct SessionDetailView: View {
                             .frame(maxHeight: 260)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     } else {
-                        Text(previewText)
-                            .font(.system(.body, design: .monospaced))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textSelection(.enabled)
+                        if canExpand && !isExpanded {
+                            Label("Previewing the first \(previewCharacterLimit) characters", systemImage: "eye")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        ScrollView(.horizontal) {
+                            Text(previewText)
+                                .font(.system(.body, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                        }
 
                         if canExpand {
-                            Button(isExpanded ? "Show Less" : "Show All") {
-                                toggleBodyExpansion(sectionID)
+                            HStack {
+                                Button(isExpanded ? "Show Less" : "Show All") {
+                                    toggleBodyExpansion(sectionID)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                                Spacer()
                             }
-                            .buttonStyle(.borderless)
                         }
                     }
                 }

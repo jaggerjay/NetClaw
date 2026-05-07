@@ -110,14 +110,7 @@ final class AppViewModel: ObservableObject {
 
         do {
             let data = try await apiClient.downloadHAR(query: currentQuery)
-            let panel = NSSavePanel()
-            panel.canCreateDirectories = true
-            panel.nameFieldStringValue = suggestedHARFilename()
-            panel.title = "Export HAR"
-            panel.message = "Save captured sessions as a HAR file"
-            panel.allowedContentTypes = []
-
-            guard panel.runModal() == .OK, let url = panel.url else {
+            guard let url = await presentHARSavePanel() else {
                 return
             }
 
@@ -278,6 +271,20 @@ final class AppViewModel: ObservableObject {
         }
         parts.append("export.har")
         return parts.joined(separator: "-")
+    }
+
+    private func presentHARSavePanel() async -> URL? {
+        await withCheckedContinuation { continuation in
+            let panel = NSSavePanel()
+            panel.canCreateDirectories = true
+            panel.nameFieldStringValue = suggestedHARFilename()
+            panel.title = "Export HAR"
+            panel.message = "Save captured sessions as a HAR file"
+            panel.allowedContentTypes = []
+            panel.begin { response in
+                continuation.resume(returning: response == .OK ? panel.url : nil)
+            }
+        }
     }
 
     private var currentQuery: SessionQuery {
